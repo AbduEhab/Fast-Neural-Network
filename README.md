@@ -67,7 +67,7 @@ But, here's the example of creating a simple feedforward neural network using th
     let error = network.back_propagate(&input, &vec![9.0]);
     let new_prediction = network.forward_propagate(&input);
 
-    // println!("{}", network);
+    println!("{}", network);
     println!("{:?}", prediction);
     println!("{:?}", error);
     println!("{:?}", new_prediction);
