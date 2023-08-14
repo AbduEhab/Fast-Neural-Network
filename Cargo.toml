@@ -1,11 +1,12 @@
 [package]
 name = "fast-neural-network"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["AbduEhab <abdu.ehab0@gmail.com>"]
 description = "A heavily parallelized neural network library designed for speed and flexability."
 readme = "README.md"
 repository = "https://github.com/AbduEhab/Fast-Neural-Network"
+license = "GPL-2.0"
 license-file = "LICENSE"
 keywords = [
     "machine_learning",
