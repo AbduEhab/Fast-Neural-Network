@@ -12,11 +12,6 @@ use serde_json;
 use std::f64;
 use std::fmt::{self, Display, Formatter};
 
-enum ComputeType {
-    Parallel,
-    Sequential,
-}
-
 /// A matrix implementation that supports basic matrix operations.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Matrix {
