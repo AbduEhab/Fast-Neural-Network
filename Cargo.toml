@@ -2,21 +2,33 @@
 name = "fast-neural-network"
 version = "0.2.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["AbduEhab <abdu.ehab0@gmail.com>"]
+description = "A heavily parallelized neural network library designed for speed and flexability."
+readme = "README.md"
+repository = "https://github.com/AbduEhab/Fast-Neural-Network"
+license-file = "LICENSE.txt"
+keywords = [
+    "machine_learning",
+    "neural_network",
+    "AI",
+    "parallel",
+    "data-science",
+]
+exclude = ["benches/Results"]
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
 strip = true
-# lto = true
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]
 # opt-level = 1
 
 [profile.release]
-lto = "thin"
+strip = true
+lto = "fat"
+opt-level = 3
 
 [dependencies]
 rand = "0.8.5"
