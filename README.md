@@ -7,17 +7,18 @@ The current implementation requires that everything is allocated on the heap and
 
 ## Project Status
 
-> Current Version: 0.1.0 (beta)
+> Current Version: 0.2.0 (beta)
 
 This library is still in its early development stages, and the current version is in the beta stage and will jump to a 1.0 version once stack-based allocations are implemented.
 Contributions and feedback are welcome, but please be aware that the internal structure may undergo significant changes as the library matures, so don't depend on the internal `Matrix` implementation as it will most likely change.
 
 ## Features
 
-[x] Basic Neural Network Layers: The library currently supports fundamental neural network layers such as fully connected (dense) layers, convolutional layers (I call them hidden layers in the API), and activation [x] functions (ReLU, sigmoid, etc.).
-[x] Backpropagation: The library includes an implementation of backpropagation, which is crucial for training neural networks. This allows the network to learn from data and update its weights accordingly.
-[x] Model Serialization: I plan to support model serialization to allow users to save and load trained models easily. I have started testing `sendre` in the meantime.
-[] Documentation: I'll write the documentation once I'm ready to publish to crates.io. For now, the example left in the `main.rs` file should be more than enough.
+- [x] Basic Neural Network Layers: The library currently supports fundamental neural network layers such as fully connected (dense) layers, convolutional layers (I call them hidden layers in the API), and activation 
+- [x] functions (ReLU, sigmoid, etc.).
+- [x] Backpropagation: The library includes an implementation of backpropagation, which is crucial for training neural networks. This allows the network to learn from data and update its weights accordingly.
+- [x] Model Serialization: I plan to support model serialization to allow users to save and load trained models easily. I have started testing `sendre` in the meantime.
+- [] Documentation: I'll write the documentation once I'm ready to publish to crates.io. For now, the example left in the `main.rs` file should be more than enough.
 
 But, here's the example of creating a simple feedforward neural network using the library, just for those who don't have the time to browse the file.:
 
@@ -90,7 +91,6 @@ But, here's the example of creating a simple feedforward neural network using th
 The focus of this library is multi-threaded performance. The library is designed to be as fast as possible, and I have done my best to optimize the code for performance. The library is still in its early stages, so there is still room for improvement, but I have done my best to make it as fast as possible. I just wish Rust had a better implementation of Generics in Constant Expressions like C++.
 
 Here is some benchmarking data for the library:
-![Benchmarking Data](benches/Results/Matrix_dot.png)
 ![Benchmarking Data](benches/Results/Matrix_dot.png)
 
 ## Contributing
