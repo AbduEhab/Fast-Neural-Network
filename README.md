@@ -9,7 +9,7 @@ The current implementation requires that everything is allocated on the heap and
 
 > Current Version: 0.2.0 (beta)
 
-This library is still in its early development stages, and the current version is in the beta stage and will jump to a 1.0 version once stack-based allocations are implemented.
+This library is still in its early development stages, and the current version is in the beta stage and will jump to a 1.0.0 version once stack-based allocations are implemented.
 Contributions and feedback are welcome, but please be aware that the internal structure may undergo significant changes as the library matures, so don't depend on the internal `Matrix` implementation as it will most likely change.
 
 ## Features
@@ -90,8 +90,7 @@ But, here's the example of creating a simple feedforward neural network using th
 
 The focus of this library is multi-threaded performance. The library is designed to be as fast as possible, and I have done my best to optimize the code for performance. The library is still in its early stages, so there is still room for improvement, but I have done my best to make it as fast as possible. I just wish Rust had a better implementation of Generics in Constant Expressions like C++.
 
-Here is some benchmarking data for the library:
-![Benchmarking Data](benches/Results/Matrix_dot.png)
+> Matrix parallelization is currently not implemented, but it will be once better generics are implemented in Rust.
 
 ## Contributing
 

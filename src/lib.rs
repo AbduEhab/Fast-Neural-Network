@@ -1,6 +1,6 @@
 //! # Fast Neural Network Library
 //! This library is a simple neural network library written in Rust. It is designed to be fast and easy to use. It supports saving and loading networks to and from JSON files.
-//! All of the heavy operations are parallelized.
+//! All of the heavy operations are parallelized. (Matrix operations are to be implemented in the future when Rust gets better Generic Constexpr support)
 //! 
 //! ## Example
 //! 

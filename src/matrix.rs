@@ -1,19 +1,18 @@
 //! # Matrix
 //!
-//! A matrix implementation that supports basic matrix operations. The heavy functions are all parallelized.
+//! A matrix implementation that supports basic matrix operations. The heavy functions are all parallelized (once better generics are implemented into Rust).
 //!
 //! > This Matrix implementation is **NOT** meant to be used as a general purpose matrix library. It is only meant to be used for the neural network library for now.
 //!
 //! > A stack-based matrix implementation is planned for the future.
 //!
 
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::f64;
 use std::fmt::{self, Display, Formatter};
 
-/// A matrix implementation that supports basic matrix operations. The heavy functions are all parallelized.
+/// A matrix implementation that supports basic matrix operations.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Matrix {
     data: Vec<f64>,
@@ -164,10 +163,10 @@ impl Matrix {
 
         for i in 0..self.rows() {
             for j in 0..other.cols() {
-                let sum = (0..self.cols())
-                    .into_par_iter()
-                    .map(|k| self.get(i, k) * other.get(k, j))
-                    .sum();
+                let mut sum = 0.0;
+                for k in 0..self.cols() {
+                    sum += self.get(i, k) * other.get(k, j);
+                }
                 result.set(i, j, sum);
             }
         }
@@ -178,27 +177,25 @@ impl Matrix {
     pub fn dot_vec(&self, other: &Vec<f64>) -> Vec<f64> {
         debug_assert!(self.cols() == other.len());
 
-        (0..self.rows())
-            .into_par_iter()
-            .map(|i| {
-                (0..self.cols())
-                    .into_par_iter()
-                    .map(|j| self.get(i, j) * other[j])
-                    .sum()
-            })
-            .collect()
+        let mut result = vec![0.0; self.rows()];
+        for i in 0..self.rows() {
+            for j in 0..self.cols() {
+                let a = self.get(i, j);
+                let b = other[j];
+                result[i] += a * b;
+            }
+        }
+        result
     }
 
     /// Multiplies the matrix with the given vector.
     pub fn scalar_mul(&self, scalar: f64) -> Matrix {
-        let mut result = Matrix {
-            data: self.data.clone(),
-            rows: self.rows(),
-            cols: self.cols(),
-        };
-
-        result.data.par_iter_mut().for_each(|x| *x *= scalar);
-
+        let mut result = Matrix::new(self.rows(), self.cols());
+        for i in 0..self.rows() {
+            for j in 0..self.cols() {
+                result.set(i, j, self.get(i, j) * scalar);
+            }
+        }
         result
     }
 
@@ -206,14 +203,13 @@ impl Matrix {
     pub fn sub(&self, other: &Self) -> Matrix {
         debug_assert!(self.rows() == other.rows() && self.cols() == other.cols());
 
-        Matrix {
-            data: (0..self.rows() * self.cols())
-                .into_par_iter()
-                .map(|i| self.data[i] - other.data[i])
-                .collect(),
-            rows: self.rows(),
-            cols: self.cols(),
+        let mut result = Matrix::new(self.rows(), self.cols());
+        for i in 0..self.rows() {
+            for j in 0..self.cols() {
+                result.set(i, j, self.get(i, j) - other.get(i, j));
+            }
         }
+        result
     }
 
     /// transforms the matrix into a vector.
