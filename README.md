@@ -3,11 +3,11 @@
 This is the beginning of a neural network library written in Rust, designed to provide a flexible and efficient platform for building and training neural networks.
 The current implementation requires that everything is allocated on the heap and be computed partially. This will be changed once Rust has a better implementation of Generics in Constant Expressions.
 
-> The nightly compiler is not something I don't wanna bother with.
+> The nightly compiler is not something I wanna bother with.
 
 ## Project Status
 
-> Current Version: 0.2.0 (beta)
+> Current Version: 0.2.2 (beta)
 
 This library is still in its early development stages, and the current version is in the beta stage and will jump to a 1.0.0 version once stack-based allocations are implemented.
 Contributions and feedback are welcome, but please be aware that the internal structure may undergo significant changes as the library matures, so don't depend on the internal `Matrix` implementation as it will most likely change.
