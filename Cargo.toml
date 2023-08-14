@@ -7,7 +7,6 @@ description = "A heavily parallelized neural network library designed for speed 
 readme = "README.md"
 repository = "https://github.com/AbduEhab/Fast-Neural-Network"
 license = "GPL-2.0"
-license-file = "LICENSE"
 keywords = [
     "machine_learning",
     "neural_network",
