@@ -6,7 +6,7 @@ authors = ["AbduEhab <abdu.ehab0@gmail.com>"]
 description = "A heavily parallelized neural network library designed for speed and flexability."
 readme = "README.md"
 repository = "https://github.com/AbduEhab/Fast-Neural-Network"
-license-file = "LICENSE.txt"
+license-file = "LICENSE"
 keywords = [
     "machine_learning",
     "neural_network",

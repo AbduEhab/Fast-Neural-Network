@@ -18,7 +18,7 @@ Contributions and feedback are welcome, but please be aware that the internal st
 - [x] functions (ReLU, sigmoid, etc.).
 - [x] Backpropagation: The library includes an implementation of backpropagation, which is crucial for training neural networks. This allows the network to learn from data and update its weights accordingly.
 - [x] Model Serialization: I plan to support model serialization to allow users to save and load trained models easily. I have started testing `sendre` in the meantime.
-- [ ] Documentation: I'll write the documentation once I'm ready to publish to crates.io. For now, the example left in the `main.rs` file should be more than enough.
+- [x] Documentation: I'll write the documentation once I'm ready to publish to crates.io. For now, the example left in the `main.rs` file should be more than enough.
 
 But, here's the example of creating a simple feedforward neural network using the library, just for those who don't have the time to browse the file.:
 
