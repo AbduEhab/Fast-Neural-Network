@@ -14,34 +14,26 @@ Contributions and feedback are welcome, but please be aware that the internal st
 
 ## Features
 
-- [x] Basic Neural Network Layers: The library currently supports fundamental neural network layers such as fully connected (dense) layers, convolutional layers (I call them hidden layers in the API), and activation 
-- [x] functions (ReLU, sigmoid, etc.).
-- [x] Backpropagation: The library includes an implementation of backpropagation, which is crucial for training neural networks. This allows the network to learn from data and update its weights accordingly.
-- [x] Model Serialization: I plan to support model serialization to allow users to save and load trained models easily. I have started testing `sendre` in the meantime.
-- [x] Documentation: I'll write the documentation once I'm ready to publish to crates.io. For now, the example left in the `main.rs` file should be more than enough.
+- [x] Basic Neural Network Layers: The library currently supports fundamental neural network layers such as fully connected (dense) layers and convolutional layers (I call them hidden layers in the API)
+- [x] Activation functions (Sigmoid, Tanh, ArcTanh, Relu, LeakyRelu, SoftMax, SoftPlus).
+- [x] Training: The library allows for low-level training of the network using backpropagation and gradient descent.
+- [x] Model Serialization
 
-But, here's the example of creating a simple feedforward neural network using the library, just for those who don't have the time to browse the file.:
+But, here's the example of creating a simple neural network and then training it for a single epoch using the library
 
 ```rust
-    use fast_neural_network::neural_network::*;
-    use fast_neural_network::activation::*;
-    use fast_neural_network::matrix::*;
+use fast_neural_network::{activation::*, matrix::*, neural_network::*};
 
-    let mut network = Network::empty_network(3, 1, ActivationType::Relu, 0.005);
+fn main() {
+    let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
 
     network.add_hidden_layer_with_size(4);
     network.add_hidden_layer_with_size(4);
-    network.compile();  // Compile the network to prepare it for training (will be done automatically during training)
-                        // The API is exposed so that the user can compile the network on a different thread before training if they want to
+    network.compile();
 
-
-    // setting up the weights and biases of the network manually
     let layer_1_weights = Matrix::from_vec(
         vec![
-            0.03, 0.62, 0.85,
-            0.60, 0.62, 0.64,
-            0.75, 0.73, 0.34,
-            0.46, 0.14, 0.06,
+            0.03, 0.62, 0.85, 0.60, 0.62, 0.64, 0.75, 0.73, 0.34, 0.46, 0.14, 0.06,
         ],
         4,
         3,
@@ -49,10 +41,8 @@ But, here's the example of creating a simple feedforward neural network using th
     let layer_1_biases = Matrix::from_vec(vec![0.14, 0.90, 0.65, 0.32], 4, 1);
     let layer_2_weights = Matrix::from_vec(
         vec![
-            0.90, 0.95, 0.26, 0.70,
-            0.12, 0.84, 0.58, 0.78,
-            0.92, 0.16, 0.49, 0.90,
-            0.64, 0.60, 0.64, 0.85,
+            0.90, 0.95, 0.26, 0.70, 0.12, 0.84, 0.58, 0.78, 0.92, 0.16, 0.49, 0.90, 0.64, 0.60,
+            0.64, 0.85,
         ],
         4,
         4,
@@ -68,21 +58,21 @@ But, here's the example of creating a simple feedforward neural network using th
     network.set_layer_weights(2, layer_3_weights);
     network.set_layer_biases(2, layer_3_biases);
 
-    // defining the input for the itteration
     let input: Vec<f64> = vec![2., 1., -1.];
 
-    let prediction = network.forward_propagate(&input); // Predict the output of the network
-    let error = network.back_propagate(&input, &vec![9.0]); // Backpropagate the input with a target output of 9.0
-    let new_prediction = network.forward_propagate(&input); // Predict the output of the network again
+    let prediction = network.forward_propagate(&input);
+    network.back_propagate(&input, &vec![9.0]);
+    let new_prediction = network.forward_propagate(&input);
 
     println!("{:?}", prediction);
     println!("{:?}", new_prediction);
 
-    network.save("network.json"); // Save the model as a json to a file
+    network.save("network.json");
 
-    let mut network = Network::load("network.json"); // Load the model from a json file
+    let mut network = Network::load("network.json");
 
     println!("{:?}", network.forward_propagate(&input));
+}
 
 ```
 
@@ -98,7 +88,7 @@ Contributions are highly encouraged! If you're interested in adding new features
 
 ## Roadmap
 
-The following features and might be implemented in a future releases:
+The following features and *might* be implemented in a future releases:
 
 - Support for more activation functions
 - GPU acceleration using CUDA or similar technologies (probably just shaders but idk it seems hard)
