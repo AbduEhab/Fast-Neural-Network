@@ -7,6 +7,7 @@
 //! > A stack-based matrix implementation is planned for the future.
 //!
 
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::f64;
@@ -15,9 +16,9 @@ use std::fmt::{self, Display, Formatter};
 /// A matrix implementation that supports basic matrix operations.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Matrix {
-    data: Vec<f64>,
-    rows: usize,
-    cols: usize,
+    pub data: Vec<f64>,
+    pub rows: usize,
+    pub cols: usize,
 }
 
 impl Matrix {
@@ -159,18 +160,35 @@ impl Matrix {
     pub fn dot(&self, other: &Self) -> Matrix {
         debug_assert!(self.cols() == other.rows());
 
-        let mut result = Matrix::new(self.rows(), other.cols());
-
-        for i in 0..self.rows() {
-            for j in 0..other.cols() {
-                let mut sum = 0.0;
-                for k in 0..self.cols() {
-                    sum += self.get(i, k) * other.get(k, j);
-                }
-                result.set(i, j, sum);
-            }
+        Matrix {
+            data: (0..self.rows())
+                .into_par_iter()
+                .flat_map(|i| {
+                    (0..other.cols())
+                        .into_par_iter()
+                        .map(|j| {
+                            (0..self.cols())
+                                .into_par_iter()
+                                .map(|k| self.get(i, k) * other.get(k, j))
+                                .sum()
+                        })
+                        .collect::<Vec<f64>>()
+                })
+                .collect::<Vec<f64>>(),
+            rows: self.rows(),
+            cols: other.cols(),
         }
-        result
+
+        // for i in 0..self.rows() {
+        //     for j in 0..other.cols() {
+        //         let mut sum = 0.0;
+        //         for k in 0..self.cols() {
+        //             sum += self.get(i, k) * other.get(k, j);
+        //         }
+        //         result.set(i, j, sum);
+        //     }
+        // }
+        // result
     }
 
     /// Multiplies the matrix with the given vector.

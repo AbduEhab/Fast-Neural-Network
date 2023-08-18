@@ -92,8 +92,8 @@ impl Network {
     ///
     /// ## Example
     /// ```
-    /// use fast_neural_network::neural_network::*;
-    /// use fast_neural_network::activation::*;
+    /// use fast_neural_network::{activation::*, neural_network::*};
+
     ///
     /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
     ///
@@ -119,8 +119,7 @@ impl Network {
     ///
     /// ## Example
     /// ```
-    /// use fast_neural_network::neural_network::*;
-    /// use fast_neural_network::activation::*;
+    /// use fast_neural_network::{activation::*, neural_network::*};
     ///
     /// let mut network = Network::new_with_layers(3, 1, vec![Layer::new(4), Layer::new(4)], ActivationType::Relu, 0.005);
     ///
@@ -149,11 +148,11 @@ impl Network {
     }
 
     /// Loads a network from a json file.
-    /// 
+    ///
     /// ## Example
     /// ```
     /// use fast_neural_network::neural_network::*;
-    /// 
+    ///
     /// let mut network = Network::load("network.json");
     /// ```
     pub fn load(path: &str) -> Self {
@@ -162,14 +161,13 @@ impl Network {
     }
 
     /// Saves the network to a json file.
-    /// 
+    ///
     /// ## Example
     /// ```
-    /// use fast_neural_network::neural_network::*;
-    /// use fast_neural_network::activation::*;
-    /// 
+    /// use fast_neural_network::{activation::*, neural_network::*};
+    ///
     /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
-    /// 
+    ///
     /// network.save("network.json");
     /// ```
     pub fn save(&self, path: &str) {
@@ -178,9 +176,9 @@ impl Network {
     }
 
     /// Creates a network from the given JSON string.
-    /// 
+    ///
     /// ## Panics
-    /// 
+    ///
     /// Panics if the JSON string is not valid.
     pub fn from_json(json: &str) -> Self {
         serde_json::from_str(&json).unwrap()
@@ -192,14 +190,13 @@ impl Network {
     }
 
     /// Adds a hidden layer to the network with the given size.
-    /// 
+    ///
     /// ## Example
     /// ```
-    /// use fast_neural_network::neural_network::*;
-    /// use fast_neural_network::activation::*;
-    /// 
+    /// use fast_neural_network::{activation::*, neural_network::*};
+    ///
     /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
-    /// 
+    ///
     /// network.add_hidden_layer_with_size(4);
     /// ```
     pub fn add_hidden_layer_with_size(&mut self, size: usize) {
@@ -208,20 +205,19 @@ impl Network {
 
     /// Compiles the network. This is done automatically during training.
     /// > Compilations should be done after the hidden layers are set.
-    /// 
+    ///
     /// ## Example
     /// ```
-    /// use fast_neural_network::neural_network::*;
-    /// use fast_neural_network::activation::*;
-    /// 
+    /// use fast_neural_network::{activation::*, neural_network::*};
+    ///
     /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
     /// network.add_hidden_layer_with_size(4);
     /// network.add_hidden_layer_with_size(4);
     /// network.compile();
     /// ```
-    /// 
+    ///
     /// ## Panics
-    /// 
+    ///
     /// Panics if any of the dimentions is 0
     pub fn compile(&mut self) {
         if cfg!(debug_assertions) {
@@ -314,12 +310,12 @@ impl Network {
     }
 
     /// Returns the output of the network for the given input. It doesn't consume the input
-    /// 
+    ///
     /// ## Example
     /// ```
     /// // network creation and training
     /// // ...
-    /// 
+    ///
     /// let prediction = network.forward_propagate(&[1, 3]); // Predict using the input [1, 3]
     /// ```
     pub fn forward_propagate(&mut self, input: &Vec<f64>) -> Vec<f64> {
@@ -333,14 +329,31 @@ impl Network {
         let mut output: Vec<f64> = weights.dot_vec(input);
         output = output.add(&biases.to_vec());
 
-        output = output
-            .into_par_iter()
-            .map(|x| match self.activation {
-                ActivationType::Sigmoid => sigm(x),
-                ActivationType::Tanh => tanh(x),
-                ActivationType::Relu => relu(x),
-            })
-            .collect();
+        let update_weights = |weights: Vec<f64>, activation: ActivationType| match activation {
+            ActivationType::SoftMax => {
+                let out_clone = weights.clone();
+                weights
+                    .into_iter()
+                    .map(|x| softmax(x, &out_clone))
+                    .collect()
+            }
+            _ => weights
+                .into_iter()
+                .map(|x| match activation {
+                    ActivationType::Sigmoid => sigm(x),
+                    ActivationType::Tanh => tanh(x),
+                    ActivationType::ArcTanh => arc_tanh(x),
+                    ActivationType::Relu => relu(x),
+                    ActivationType::LeakyRelu => leaky_relu(x),
+                    ActivationType::SoftMax => {
+                        panic!("Soft max should be handled before this function")
+                    }
+                    ActivationType::SoftPlus => softplus(x),
+                })
+                .collect(),
+        };
+
+        output = update_weights(output, self.activation.clone());
 
         self.activation_matrices
             .push(Matrix::from_vec(output.clone(), output.len(), 1));
@@ -351,14 +364,7 @@ impl Network {
             output = weights.dot_vec(&output);
             output = output.add(&biases.to_vec());
 
-            output = output
-                .into_par_iter()
-                .map(|x| match self.activation {
-                    ActivationType::Sigmoid => sigm(x),
-                    ActivationType::Tanh => tanh(x),
-                    ActivationType::Relu => relu(x),
-                })
-                .collect();
+            output = update_weights(output, self.activation.clone());
 
             self.activation_matrices
                 .push(Matrix::from_vec(output.clone(), output.len(), 1));
@@ -368,21 +374,19 @@ impl Network {
     }
 
     /// Trains the network with the given input and target output.
-    /// 
+    ///
     /// ## Example
     /// ```
     /// // network creation
     /// // ...
-    /// 
+    ///
     /// let input = vec![1, 3];
     /// let target = vec![0.5];
-    /// 
+    ///
     /// network.back_propagate(&input, &target);
     /// ```
-    pub fn back_propagate(&mut self, input: &Vec<f64>, target: &Vec<f64>) {
+    pub fn back_propagate(&mut self, input: &Vec<f64>, target: &Vec<f64>) -> Vec<f64>{
         let output = self.forward_propagate(input);
-
-        let mut d_a: Matrix;
 
         let mut delta_weights: Vec<Matrix> = vec![];
         let mut delta_biases: Vec<Matrix> = vec![];
@@ -397,11 +401,16 @@ impl Network {
         }
 
         let mut d_z = vec![0.0; output.len()];
+
         for i in 0..output.len() {
             match self.activation {
                 ActivationType::Sigmoid => d_z[i] = der_sigm(output[i]),
                 ActivationType::Tanh => d_z[i] = der_tanh(output[i]),
+                ActivationType::ArcTanh => d_z[i] = der_arc_tanh(output[i]),
                 ActivationType::Relu => d_z[i] = der_relu(output[i]),
+                ActivationType::LeakyRelu => d_z[i] = der_leaky_relu(output[i]),
+                ActivationType::SoftMax => d_z[i] = der_softmax(output[i], &output),
+                ActivationType::SoftPlus => d_z[i] = der_softplus(output[i]),
             }
         }
 
@@ -419,25 +428,63 @@ impl Network {
         delta_biases.push(d_b);
 
         for i in (2..self.layer_matrices.len()).rev() {
-            d_a = self.layer_matrices[i].0.transpose().dot(&Matrix::from_vec(
+            let d_a = self.layer_matrices[i].0.transpose().dot(&Matrix::from_vec(
                 d_z.clone(),
                 d_z.len(),
                 1,
             ));
 
-            d_z = d_a
-                .to_vec()
-                .into_par_iter()
-                .map(|x| {
-                    x * match self.activation {
-                        ActivationType::Sigmoid => {
-                            der_sigm(self.activation_matrices[i - 1].get(0, 0))
-                        }
-                        ActivationType::Tanh => der_tanh(self.activation_matrices[i - 1].get(0, 0)),
-                        ActivationType::Relu => der_relu(self.activation_matrices[i - 1].get(0, 0)),
-                    }
-                })
-                .collect();
+            match self.activation {
+                ActivationType::Sigmoid => {
+                    d_z = d_a
+                        .data
+                        .into_iter()
+                        .map(|x| x * der_sigm(self.activation_matrices[i - 1].get(0, 0)))
+                        .collect()
+                }
+                ActivationType::Tanh => {
+                    d_z = d_a
+                        .data
+                        .into_iter()
+                        .map(|x| x * der_tanh(self.activation_matrices[i - 1].get(0, 0)))
+                        .collect()
+                }
+                ActivationType::ArcTanh => {
+                    d_z = d_a
+                        .data
+                        .into_iter()
+                        .map(|x| x * der_arc_tanh(self.activation_matrices[i - 1].get(0, 0)))
+                        .collect()
+                }
+                ActivationType::Relu => {
+                    d_z = d_a
+                        .data
+                        .into_iter()
+                        .map(|x| x * der_relu(self.activation_matrices[i - 1].get(0, 0)))
+                        .collect()
+                }
+                ActivationType::LeakyRelu => {
+                    d_z = d_a
+                        .data
+                        .into_iter()
+                        .map(|x| x * der_leaky_relu(self.activation_matrices[i - 1].get(0, 0)))
+                        .collect()
+                }
+                ActivationType::SoftMax => {
+                    d_z = d_a
+                        .to_vec()
+                        .into_iter()
+                        .map(|x| x * der_softmax(x, &d_a.data))
+                        .collect()
+                }
+                ActivationType::SoftPlus => {
+                    d_z = d_a
+                        .data
+                        .into_iter()
+                        .map(|x| x * der_softplus(self.activation_matrices[i - 1].get(0, 0)))
+                        .collect()
+                }
+            }
 
             let d_w = Matrix::from_vec(d_z.clone(), d_z.len(), 1)
                 .dot(&self.activation_matrices[i - 2].transpose());
@@ -448,24 +495,69 @@ impl Network {
         }
 
         // final iteration is calculated with the input layer
-        d_a =
+        let d_a =
             self.layer_matrices[1]
                 .0
                 .transpose()
                 .dot(&Matrix::from_vec(d_z.clone(), d_z.len(), 1));
 
-        d_z = d_a
-            .to_vec()
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, x)| {
-                x * match self.activation {
-                    ActivationType::Sigmoid => der_sigm(self.activation_matrices[0].get(i, 0)),
-                    ActivationType::Tanh => der_tanh(self.activation_matrices[0].get(i, 0)),
-                    ActivationType::Relu => der_relu(self.activation_matrices[0].get(i, 0)),
-                }
-            })
-            .collect();
+        match self.activation {
+            ActivationType::Sigmoid => {
+                d_z = d_a
+                    .data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_sigm(self.activation_matrices[0].get(i, 0)))
+                    .collect()
+            }
+            ActivationType::Tanh => {
+                d_z = d_a
+                    .data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_tanh(self.activation_matrices[0].get(i, 0)))
+                    .collect()
+            }
+            ActivationType::ArcTanh => {
+                d_z = d_a
+                    .data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_arc_tanh(self.activation_matrices[0].get(i, 0)))
+                    .collect()
+            }
+            ActivationType::Relu => {
+                d_z = d_a
+                    .data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_relu(self.activation_matrices[0].get(i, 0)))
+                    .collect()
+            }
+            ActivationType::LeakyRelu => {
+                d_z = d_a
+                    .data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_leaky_relu(self.activation_matrices[0].get(i, 0)))
+                    .collect()
+            }
+            ActivationType::SoftMax => {
+                d_z = d_a
+                    .to_vec()
+                    .into_iter()
+                    .map(|x| x * der_softmax(x, &d_a.data))
+                    .collect()
+            }
+            ActivationType::SoftPlus => {
+                d_z = d_a
+                    .data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_softplus(self.activation_matrices[0].get(i, 0)))
+                    .collect()
+            }
+        }
 
         let d_w = Matrix::from_vec(d_z.clone(), d_z.len(), 1)
             .dot(&Matrix::from_vec(input.clone(), input.len(), 1).transpose());
@@ -482,9 +574,12 @@ impl Network {
                 &delta_biases[self.layer_matrices.len() - 1 - i].scalar_mul(self.leanring_rate),
             );
         }
+
+        loss
     }
 }
 
+/// Formats the network to be printed
 impl Display for Network {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let mut output = String::new();

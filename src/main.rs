@@ -1,6 +1,4 @@
-use fast_neural_network::neural_network::*;
-use fast_neural_network::activation::*;
-use fast_neural_network::matrix::*;
+use fast_neural_network::{activation::*, matrix::*, neural_network::*};
 
 fn main() {
     let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
