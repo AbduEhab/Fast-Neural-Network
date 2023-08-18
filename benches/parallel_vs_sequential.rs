@@ -157,5 +157,12 @@ fn par_prop(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, par_prop);
+criterion_group!(
+    benches,
+    matrix_sequential_dot,
+    matrix_parallel_dot,
+    matrix_sequential_transpose,
+    matrix_parallel_transpose,
+    par_prop
+);
 criterion_main!(benches);
