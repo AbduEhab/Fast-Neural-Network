@@ -160,35 +160,18 @@ impl Matrix {
     pub fn dot(&self, other: &Self) -> Matrix {
         debug_assert!(self.cols() == other.rows());
 
-        Matrix {
-            data: (0..self.rows())
-                .into_par_iter()
-                .flat_map(|i| {
-                    (0..other.cols())
-                        .into_par_iter()
-                        .map(|j| {
-                            (0..self.cols())
-                                .into_par_iter()
-                                .map(|k| self.get(i, k) * other.get(k, j))
-                                .sum()
-                        })
-                        .collect::<Vec<f64>>()
-                })
-                .collect::<Vec<f64>>(),
-            rows: self.rows(),
-            cols: other.cols(),
-        }
+        let mut result = Matrix::new(self.rows(), other.cols());
 
-        // for i in 0..self.rows() {
-        //     for j in 0..other.cols() {
-        //         let mut sum = 0.0;
-        //         for k in 0..self.cols() {
-        //             sum += self.get(i, k) * other.get(k, j);
-        //         }
-        //         result.set(i, j, sum);
-        //     }
-        // }
-        // result
+        for i in 0..self.rows() {
+            for j in 0..other.cols() {
+                let mut sum = 0.0;
+                for k in 0..self.cols() {
+                    sum += self.data[i * self.cols + k] * other.data[k * other.cols + j];
+                }
+                result.set(i, j, sum);
+            }
+        }
+        result
     }
 
     /// Multiplies the matrix with the given vector.
@@ -242,7 +225,7 @@ impl Display for Matrix {
         let mut output = String::new();
         for i in 0..self.rows() {
             for j in 0..self.cols() {
-                output.push_str(&format!("{} ", self.get(i, j)));
+                output.push_str(&format!("{:.8} ", self.get(i, j)));
             }
             output.push_str("\n");
         }

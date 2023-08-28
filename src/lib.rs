@@ -18,7 +18,7 @@
 //!                         // The API is exposed so that the user can compile 
 //!                         // the network on a different thread before training if they want to
 //! 
-//!     // setting up the weights and biases of the network manually
+//!     // setting up the weights and biases of the network manually (this is an optional step)
 //!     let layer_1_weights = Matrix::from_vec(
 //!         vec![
 //!             0.03, 0.62, 0.85,
@@ -51,7 +51,7 @@
 //!     network.set_layer_weights(2, layer_3_weights);
 //!     network.set_layer_biases(2, layer_3_biases);
 //! 
-//!     // defining the input for the itteration
+//!     // defining the input for the network
 //!     let input: Vec<f64> = vec![2., 1., -1.];
 //! 
 //!     let prediction = network.forward_propagate(&input); // Predict the output of the network

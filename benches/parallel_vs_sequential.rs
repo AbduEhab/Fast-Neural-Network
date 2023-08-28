@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rayon::prelude::*;
 
-use fast_neural_network::{activation::ActivationType, matrix::Matrix, neural_network::Network};
+use fast_neural_network::{activation::*, matrix::*, neural_network::*};
 
 trait Bench {
     fn seq_dot(&self, other: &Self) -> Matrix;
@@ -161,8 +161,8 @@ criterion_group!(
     benches,
     matrix_sequential_dot,
     matrix_parallel_dot,
-    matrix_sequential_transpose,
-    matrix_parallel_transpose,
-    par_prop
+    // matrix_sequential_transpose,
+    // matrix_parallel_transpose,
+    // par_prop
 );
 criterion_main!(benches);

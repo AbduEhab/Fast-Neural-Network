@@ -43,6 +43,8 @@ fn main() {
     println!("{:?}", prediction);
     println!("{:?}", new_prediction);
 
+    println!("{}", network);
+
     network.save("network.json");
 
     let mut network = Network::load("network.json");
