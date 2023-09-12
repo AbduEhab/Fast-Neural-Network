@@ -64,7 +64,7 @@ fn main() {
     network.set_layer_biases(1, layer_2_biases);
     network.set_layer_weights(2, layer_3_weights);
     network.set_layer_biases(2, layer_3_biases);
-    // ------------------------------------------------------------------------------
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // defining the input for the network
     let input: Vec<f64> = vec![2., 1., -1.];
