@@ -17,7 +17,7 @@ Contributions and feedback are welcome, but please be aware that the internal st
 - [x] Training: The library allows for low-level training of the network using backpropagation and gradient descent.
 - [x] Model Serialization
 
-But, here's the example of creating a simple neural network and then training it for a single epoch using the library
+But, here's an example of creating a simple neural network and then training it for a single epoch using the library
 
 ```rust
 use fast_neural_network::{activation::*, matrix::*, neural_network::*};
@@ -31,6 +31,7 @@ fn main() {
                         // The API is exposed so that the user can compile
                         // the network on a different thread before training if they want to
 
+    // -------------------------------  OPTIONAL STEP -------------------------------
     // setting up the weights and biases of the network manually (this is an optional step)
     let layer_1_weights = Matrix::from_vec(
         vec![
@@ -63,6 +64,7 @@ fn main() {
     network.set_layer_biases(1, layer_2_biases);
     network.set_layer_weights(2, layer_3_weights);
     network.set_layer_biases(2, layer_3_biases);
+    // ------------------------------------------------------------------------------
 
     // defining the input for the network
     let input: Vec<f64> = vec![2., 1., -1.];
@@ -95,8 +97,8 @@ Contributions are highly encouraged! If you're interested in adding new features
 
 ## Roadmap
 
-The following features and _might_ be implemented in a future releases:
+The following features might be implemented in a future release:
 
 - Support for more activation functions
 - GPU acceleration using CUDA or similar technologies (probably just shaders but idk it seems hard)
-- Enhanced model evaluation tools (and possibly, maybe a GUI to go with them. If I write one it will be in raylib btw)
+- Enhanced model evaluation tools (and possibly, maybe even a GUI to go with them. If I write one it will be in Raylib btw)
