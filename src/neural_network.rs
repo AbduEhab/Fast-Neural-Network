@@ -495,9 +495,9 @@ impl Network {
                 }
             }
 
-            let d_w = Array::from_shape_vec((d_z.len() / output.len(), output.len()), d_z.to_vec())
+            let d_w = Array::from_shape_vec((1, d_z.len()), d_z.to_vec())
                 .unwrap()
-                .t()
+                
                 .dot(&self.activation_matrices[i - 2]);
             delta_weights.push(d_w[0]);
 
@@ -506,9 +506,9 @@ impl Network {
         }
 
         // final iteration is calculated with the input layer
-        let d_a = self.layer_matrices[1].0.t().dot(
-            &Array::from_shape_vec((d_z.len() / output.len(), output.len()), d_z.to_vec()).unwrap(),
-        );
+        let d_a = self.layer_matrices[1]
+            .0
+            .dot(&Array::from_shape_vec((1, d_z.len()), d_z.to_vec()).unwrap().t());
 
         match self.activation {
             ActivationType::Sigmoid => {
