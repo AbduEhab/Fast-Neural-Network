@@ -409,20 +409,21 @@ impl Network {
             loss[i] = error[i].powi(2);
         }
 
-        let mut d_z = Array::from_shape_fn(output.len(), |i| match self.activation {
-            ActivationType::Sigmoid => der_sigm(output[i]),
-            ActivationType::Tanh => der_tanh(output[i]),
-            ActivationType::ArcTanh => der_arc_tanh(output[i]),
-            ActivationType::Relu => der_relu(output[i]),
-            ActivationType::LeakyRelu => der_leaky_relu(output[i]),
-            ActivationType::SoftMax => der_softmax(output[i], &output),
-            ActivationType::SoftPlus => der_softplus(output[i]),
-        });
-
-        d_z = d_z
+        let mut d_z: ndarray::Array1<f64> = (0..output.len())
             .into_iter()
             .enumerate()
-            .map(|(i, x)| -2. * x * error[i])
+            .map(|(i, _)| {
+                -2. * error[i]
+                    * match self.activation {
+                        ActivationType::Sigmoid => der_sigm(output[i]),
+                        ActivationType::Tanh => der_tanh(output[i]),
+                        ActivationType::ArcTanh => der_arc_tanh(output[i]),
+                        ActivationType::Relu => der_relu(output[i]),
+                        ActivationType::LeakyRelu => der_leaky_relu(output[i]),
+                        ActivationType::SoftMax => der_softmax(output[i], &output),
+                        ActivationType::SoftPlus => der_softplus(output[i]),
+                    }
+            })
             .collect();
 
         let temp = &self.activation_matrices[self.activation_matrices.len() - 2];
