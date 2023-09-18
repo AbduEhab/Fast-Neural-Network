@@ -39,9 +39,7 @@ fn main() {
 
     let prediction = network.forward_propagate(&input);
 
-    for _ in 0..10 {
-        network.back_propagate(&input, &Array::from_vec(vec![9.0]));
-    }
+    network.back_propagate(&input, &Array::from_vec(vec![9.0]));
 
     let new_prediction = network.forward_propagate(&input);
 

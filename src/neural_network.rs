@@ -427,9 +427,8 @@ impl Network {
 
         let temp = &self.activation_matrices[self.activation_matrices.len() - 2];
 
-        let z_d_2d = Array::from_shape_vec((1, d_z.len()), d_z.to_vec()).unwrap();
-
-        let d_w = z_d_2d
+        let d_w = Array::from_shape_vec((1, d_z.len()), d_z.to_vec())
+            .unwrap()
             .t()
             .dot(&Array::from_shape_vec((1, temp.len()), temp.to_vec()).unwrap());
         delta_weights.push(d_w[[0, 0]]);
@@ -438,7 +437,11 @@ impl Network {
         delta_biases.push(d_b);
 
         for i in (2..self.layer_matrices.len()).rev() {
-            let d_a = self.layer_matrices[i].0.t().dot(&z_d_2d);
+            let d_a = self.layer_matrices[i].0.t().dot(
+                &Array::from_shape_vec((1, d_z.len()), d_z.to_vec())
+                    .unwrap()
+                    .t(),
+            );
 
             match self.activation {
                 ActivationType::Sigmoid => {
