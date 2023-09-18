@@ -1,31 +1,32 @@
-use fast_neural_network::{activation::*, matrix::*, neural_network::*};
+use fast_neural_network::{activation::*, neural_network::*};
+use ndarray::*;
 
 fn main() {
-    let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
+    let mut network = Network::new(3, 2, ActivationType::Relu, 0.005);
 
     network.add_hidden_layer_with_size(4);
     network.add_hidden_layer_with_size(4);
     network.compile();
 
-    let layer_1_weights = Matrix::from_vec(
+    let layer_1_weights = Array::from_shape_vec(
+        (4, 3),
         vec![
             0.03, 0.62, 0.85, 0.60, 0.62, 0.64, 0.75, 0.73, 0.34, 0.46, 0.14, 0.06,
         ],
-        4,
-        3,
-    );
-    let layer_1_biases = Matrix::from_vec(vec![0.14, 0.90, 0.65, 0.32], 4, 1);
-    let layer_2_weights = Matrix::from_vec(
+    )
+    .unwrap();
+    let layer_1_biases = Array::<f64, _>::from_shape_vec(4, vec![0.14, 0.90, 0.65, 0.32]).unwrap();
+    let layer_2_weights = Array::from_shape_vec(
+        (4, 4),
         vec![
             0.90, 0.95, 0.26, 0.70, 0.12, 0.84, 0.58, 0.78, 0.92, 0.16, 0.49, 0.90, 0.64, 0.60,
             0.64, 0.85,
         ],
-        4,
-        4,
-    );
-    let layer_2_biases = Matrix::from_vec(vec![0.41, 0.09, 0.28, 0.70], 4, 1);
-    let layer_3_weights = Matrix::from_vec(vec![0.23, 0.34, 0.24, 0.67], 1, 4);
-    let layer_3_biases = Matrix::from_vec(vec![0.23], 1, 1);
+    )
+    .unwrap();
+    let layer_2_biases = Array::from_shape_vec(4, vec![0.41, 0.09, 0.28, 0.70]).unwrap();
+    let layer_3_weights = Array::from_shape_vec((1, 4), vec![0.23, 0.34, 0.24, 0.67]).unwrap();
+    let layer_3_biases = Array::from_shape_vec(2, vec![0.23, 0.42]).unwrap();
 
     network.set_layer_weights(0, layer_1_weights);
     network.set_layer_biases(0, layer_1_biases);
@@ -34,10 +35,10 @@ fn main() {
     network.set_layer_weights(2, layer_3_weights);
     network.set_layer_biases(2, layer_3_biases);
 
-    let input: Vec<f64> = vec![2., 1., -1.];
+    let input: ndarray::Array1<f64> = Array::from_vec(vec![2., 1., -1.]);
 
     let prediction = network.forward_propagate(&input);
-    network.back_propagate(&input, &vec![9.0]);
+    network.back_propagate(&input, &Array::from_vec(vec![9.0, 1.]));
     let new_prediction = network.forward_propagate(&input);
 
     println!("{:?}", prediction);

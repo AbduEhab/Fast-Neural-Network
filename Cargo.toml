@@ -21,9 +21,9 @@ exclude = ["benches/Results"]
 opt-level = 3
 strip = true
 
-# Enable only a small amount of optimization in debug mode
+# Enable no amount of optimization in debug mode
 [profile.dev]
-# opt-level = 1
+# opt-level = 0
 
 [profile.release]
 strip = true
@@ -34,6 +34,7 @@ rand = "0.8.5"
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 rayon = "1.7.0"
+ndarray = { version = "0.15.6", features = ["serde", "rayon", "matrixmultiply-threading"] }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }

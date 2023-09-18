@@ -68,7 +68,7 @@ pub fn der_leaky_relu(x: f64) -> f64 {
     }
 }
 
-pub fn softmax(x: f64, total: &Vec<f64>) -> f64 {
+pub fn softmax(x: f64, total: &ndarray::Array1<f64>) -> f64 {
     x.exp() / total.iter().map(|x| x.exp()).sum::<f64>()
 }
 
@@ -76,7 +76,7 @@ pub fn softmax_array<const SIZE: usize>(x: f64, total: &[f64; SIZE]) -> f64 {
     x.exp() / total.iter().map(|x| x.exp()).sum::<f64>()
 }
 
-pub fn der_softmax(x: f64, total: &Vec<f64>) -> f64 {
+pub fn der_softmax(x: f64, total: &ndarray::Array1<f64>) -> f64 {
     softmax(x, total) * (1.0 - softmax(x, total))
 }
 

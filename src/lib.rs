@@ -72,4 +72,3 @@
 
 pub mod neural_network;
 pub mod activation;
-pub mod matrix;

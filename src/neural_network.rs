@@ -3,6 +3,7 @@
 //! This is the neural network module. It contains the `Network` struct and the `ActivationType` enum. This is the heart of the crate.
 //!
 
+use ndarray::*;
 use rand::random;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,6 @@ use std::f64;
 use std::fmt::{self, Display, Formatter};
 
 use crate::activation::*;
-use crate::matrix::*;
 
 /// a trait for adding two vectors
 pub trait LinearAlgebra {
@@ -77,11 +77,11 @@ impl Layer {
 /// The main heap based neural network struct.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Network {
-    inputs: Layer,                         // number of neurons in input layer
-    outputs: Layer,                        // number of neurons in output layer
+    inputs: Layer,             // number of neurons in input layer
+    outputs: Layer,            // number of neurons in output layer
     hidden_layers: Vec<Layer>, // number of hidden layers (each layer has a number of neurons)
-    layer_matrices: Vec<(Matrix, Matrix)>, // (weights, biases)
-    activation_matrices: Vec<Matrix>,
+    layer_matrices: Vec<(ndarray::Array2<f64>, ndarray::Array1<f64>)>, // (weights, biases)
+    activation_matrices: Vec<ndarray::Array1<f64>>,
     activation: ActivationType, // activation function
     leanring_rate: f64,
     compiled: bool,
@@ -219,8 +219,8 @@ impl Network {
     ///
     /// Panics if any of the dimentions is 0
     pub fn compile(&mut self) {
-        debug_assert!(self.inputs.size > 0);
-        debug_assert!(self.outputs.size > 0);
+        assert!(self.inputs.size > 0);
+        assert!(self.outputs.size > 0);
 
         if self.compiled {
             return;
@@ -244,8 +244,9 @@ impl Network {
                 );
                 biases.push(random::<f64>());
             }
-            let weights = Matrix::from_vec(weights, layers[i + 1].size, layers[i].size);
-            let biases = Matrix::from_vec(biases, layers[i + 1].size, 1);
+            let weights =
+                Array2::from_shape_vec((layers[i + 1].size, layers[i].size), weights).unwrap();
+            let biases = Array1::from_shape_vec(layers[i + 1].size, biases).unwrap();
             self.layer_matrices.push((weights, biases));
         }
 
@@ -268,26 +269,27 @@ impl Network {
     }
 
     /// Sets the weights and biases of the given layer
-    pub fn set_layer_weights(&mut self, layer: usize, weights: Matrix) {
-        debug_assert!(layer < self.layer_matrices.len());
+    pub fn set_layer_weights(&mut self, layer: usize, weights: ndarray::Array2<f64>) {
+        assert!(layer < self.layer_matrices.len());
         self.layer_matrices[layer].0 = weights;
     }
 
     /// Returns the weights of the given layer
-    pub fn layer_weights(&self, layer: usize) -> Matrix {
-        debug_assert!(layer < self.layer_matrices.len());
+    pub fn layer_weights(&self, layer: usize) -> ndarray::Array2<f64> {
+        assert!(layer < self.layer_matrices.len());
         self.layer_matrices[layer].0.clone()
     }
 
     /// Sets the biases of the given layer
-    pub fn set_layer_biases(&mut self, layer: usize, biases: Matrix) {
-        debug_assert!(layer < self.layer_matrices.len());
+    pub fn set_layer_biases(&mut self, layer: usize, biases: ndarray::Array1<f64>) {
+        assert!(layer < self.layer_matrices.len());
+        assert!(biases.len() == self.layer_matrices[layer].1.len());
         self.layer_matrices[layer].1 = biases;
     }
 
     /// Returns the biases of the given layer
-    pub fn layer_biases(&self, layer: usize) -> Matrix {
-        debug_assert!(layer < self.layer_matrices.len());
+    pub fn layer_biases(&self, layer: usize) -> ndarray::Array1<f64> {
+        assert!(layer < self.layer_matrices.len());
         self.layer_matrices[layer].1.clone()
     }
 
@@ -315,59 +317,60 @@ impl Network {
     ///
     /// let prediction = network.forward_propagate(&[1, 3]); // Predict using the input [1, 3]
     /// ```
-    pub fn forward_propagate(&mut self, input: &Vec<f64>) -> Vec<f64> {
+    pub fn forward_propagate(&mut self, input: &ndarray::Array1<f64>) -> ndarray::Array1<f64> {
         if !self.compiled {
             self.compile();
         }
 
+        assert!(input.len() == self.inputs.size);
+
         self.activation_matrices.clear();
 
         let (weights, biases) = &self.layer_matrices[0];
-        let mut output: Vec<f64> = weights.dot_vec(input);
-        output = output.add(&biases.to_vec());
+        let mut output = weights.dot(input);
+        output = output + biases;
 
-        let update_weights = |weights: &Vec<f64>, activation: ActivationType| match activation {
-            ActivationType::Sigmoid => weights.into_iter().for_each(|x| {
-                sigm(*x);
-            }),
-            ActivationType::Tanh => weights.into_iter().for_each(|x| {
-                tanh(*x);
-            }),
-            ActivationType::ArcTanh => weights.into_iter().for_each(|x| {
-                arc_tanh(*x);
-            }),
-            ActivationType::Relu => weights.into_iter().for_each(|x| {
-                relu(*x);
-            }),
-            ActivationType::LeakyRelu => weights.into_iter().for_each(|x| {
-                leaky_relu(*x);
-            }),
-            ActivationType::SoftPlus => weights.into_iter().for_each(|x| {
-                softplus(*x);
-            }),
-            ActivationType::SoftMax => {
-                let out_clone = weights.clone();
-                weights.into_iter().for_each(|x| {
-                    softmax(*x, &out_clone);
-                })
-            }
-        };
+        let update_weights =
+            |weights: &ndarray::Array1<f64>, activation: ActivationType| match activation {
+                ActivationType::Sigmoid => weights.into_iter().for_each(|x| {
+                    sigm(*x);
+                }),
+                ActivationType::Tanh => weights.into_iter().for_each(|x| {
+                    tanh(*x);
+                }),
+                ActivationType::ArcTanh => weights.into_iter().for_each(|x| {
+                    arc_tanh(*x);
+                }),
+                ActivationType::Relu => weights.into_iter().for_each(|x| {
+                    relu(*x);
+                }),
+                ActivationType::LeakyRelu => weights.into_iter().for_each(|x| {
+                    leaky_relu(*x);
+                }),
+                ActivationType::SoftPlus => weights.into_iter().for_each(|x| {
+                    softplus(*x);
+                }),
+                ActivationType::SoftMax => {
+                    let out_clone = weights.clone();
+                    weights.into_iter().for_each(|x| {
+                        softmax(*x, &out_clone);
+                    })
+                }
+            };
 
         update_weights(&output, self.activation.clone());
 
-        self.activation_matrices
-            .push(Matrix::from_vec(output.clone(), output.len(), 1));
+        self.activation_matrices.push(output.clone());
 
         for i in 1..self.layer_matrices.len() {
             let (weights, biases) = &self.layer_matrices[i];
 
-            output = weights.dot_vec(&output);
-            output = output.add(&biases.to_vec());
+            output = weights.dot(&output);
+            output = output + biases;
 
             update_weights(&output, self.activation.clone());
 
-            self.activation_matrices
-                .push(Matrix::from_vec(output.clone(), output.len(), 1));
+            self.activation_matrices.push(output.clone());
         }
 
         output
@@ -385,11 +388,17 @@ impl Network {
     ///
     /// network.back_propagate(&input, &target);
     /// ```
-    pub fn back_propagate(&mut self, input: &Vec<f64>, target: &Vec<f64>) -> Vec<f64> {
+    pub fn back_propagate(
+        &mut self,
+        input: &ndarray::Array1<f64>,
+        target: &ndarray::Array1<f64>,
+    ) -> ndarray::Array1<f64> {
+        assert!(target.len() == self.outputs.size);
+
         let output = self.forward_propagate(input);
 
-        let mut delta_weights: Vec<Matrix> = vec![];
-        let mut delta_biases: Vec<Matrix> = vec![];
+        let mut delta_weights: Vec<f64> = vec![];
+        let mut delta_biases: Vec<ndarray::Array1<f64>> = vec![];
 
         // first iteration is calculated with the predicted output
 
@@ -400,182 +409,170 @@ impl Network {
             loss[i] = error[i].powi(2);
         }
 
-        let mut d_z = vec![0.0; output.len()];
-
-        for i in 0..output.len() {
-            match self.activation {
-                ActivationType::Sigmoid => d_z[i] = der_sigm(output[i]),
-                ActivationType::Tanh => d_z[i] = der_tanh(output[i]),
-                ActivationType::ArcTanh => d_z[i] = der_arc_tanh(output[i]),
-                ActivationType::Relu => d_z[i] = der_relu(output[i]),
-                ActivationType::LeakyRelu => d_z[i] = der_leaky_relu(output[i]),
-                ActivationType::SoftMax => d_z[i] = der_softmax(output[i], &output),
-                ActivationType::SoftPlus => d_z[i] = der_softplus(output[i]),
-            }
-        }
+        let mut d_z = Array::from_shape_fn(output.len(), |i| match self.activation {
+            ActivationType::Sigmoid => der_sigm(output[i]),
+            ActivationType::Tanh => der_tanh(output[i]),
+            ActivationType::ArcTanh => der_arc_tanh(output[i]),
+            ActivationType::Relu => der_relu(output[i]),
+            ActivationType::LeakyRelu => der_leaky_relu(output[i]),
+            ActivationType::SoftMax => der_softmax(output[i], &output),
+            ActivationType::SoftPlus => der_softplus(output[i]),
+        });
 
         d_z = d_z
-            .into_par_iter()
+            .into_iter()
             .enumerate()
             .map(|(i, x)| -2. * x * error[i])
             .collect();
 
-        let d_w = Matrix::from_vec(d_z.clone(), d_z.len(), 1)
-            .dot(&self.activation_matrices[self.activation_matrices.len() - 2].transpose());
-        delta_weights.push(d_w);
+        let temp = &self.activation_matrices[self.activation_matrices.len() - 2];
 
-        let d_b = Matrix::from_vec(d_z.clone(), d_z.len(), 1);
+        let z_d_2d = Array::from_shape_vec((1, d_z.len()), d_z.to_vec()).unwrap();
+
+        let d_w = z_d_2d
+            .t()
+            .dot(&Array::from_shape_vec((1, temp.len()), temp.to_vec()).unwrap());
+        delta_weights.push(d_w[[0, 0]]);
+
+        let d_b = d_z.clone();
         delta_biases.push(d_b);
 
         for i in (2..self.layer_matrices.len()).rev() {
-            let d_a = self.layer_matrices[i].0.transpose().dot(&Matrix::from_vec(
-                d_z.clone(),
-                d_z.len(),
-                1,
-            ));
+            let d_a = self.layer_matrices[i].0.t().dot(&z_d_2d);
 
             match self.activation {
                 ActivationType::Sigmoid => {
                     d_z = d_a
-                        .data
                         .into_iter()
-                        .map(|x| x * der_sigm(self.activation_matrices[i - 1].get(0, 0)))
+                        .map(|x| x * der_sigm(self.activation_matrices[i - 1][[0]]))
                         .collect()
                 }
                 ActivationType::Tanh => {
                     d_z = d_a
-                        .data
                         .into_iter()
-                        .map(|x| x * der_tanh(self.activation_matrices[i - 1].get(0, 0)))
+                        .map(|x| x * der_tanh(self.activation_matrices[i - 1][[0]]))
                         .collect()
                 }
                 ActivationType::ArcTanh => {
                     d_z = d_a
-                        .data
                         .into_iter()
-                        .map(|x| x * der_arc_tanh(self.activation_matrices[i - 1].get(0, 0)))
+                        .map(|x| x * der_arc_tanh(self.activation_matrices[i - 1][[0]]))
                         .collect()
                 }
                 ActivationType::Relu => {
                     d_z = d_a
-                        .data
                         .into_iter()
-                        .map(|x| x * der_relu(self.activation_matrices[i - 1].get(0, 0)))
+                        .map(|x| x * der_relu(self.activation_matrices[i - 1][[0]]))
                         .collect()
                 }
                 ActivationType::LeakyRelu => {
                     d_z = d_a
-                        .data
                         .into_iter()
-                        .map(|x| x * der_leaky_relu(self.activation_matrices[i - 1].get(0, 0)))
+                        .map(|x| x * der_leaky_relu(self.activation_matrices[i - 1][[0]]))
                         .collect()
                 }
                 ActivationType::SoftMax => {
+                    let d_a_1d = Array::<f64, _>::from_shape_vec(
+                        d_a.len(),
+                        d_a.clone().into_iter().collect(),
+                    )
+                    .unwrap();
+
                     d_z = d_a
-                        .to_vec()
                         .into_iter()
-                        .map(|x| x * der_softmax(x, &d_a.data))
+                        .map(|x| x * der_softmax(x, &d_a_1d))
                         .collect()
                 }
                 ActivationType::SoftPlus => {
                     d_z = d_a
-                        .data
                         .into_iter()
-                        .map(|x| x * der_softplus(self.activation_matrices[i - 1].get(0, 0)))
+                        .map(|x| x * der_softplus(self.activation_matrices[i - 1][[0]]))
                         .collect()
                 }
             }
 
-            let d_w = Matrix::from_vec(d_z.clone(), d_z.len(), 1)
-                .dot(&self.activation_matrices[i - 2].transpose());
-            delta_weights.push(d_w);
+            let d_w = Array::from_shape_vec((d_z.len() / output.len(), output.len()), d_z.to_vec())
+                .unwrap()
+                .dot(&self.activation_matrices[i - 2].t());
+            delta_weights.push(d_w[0]);
 
-            let d_b = Matrix::from_vec(d_z.clone(), d_z.len(), 1);
+            let d_b = d_z.clone();
             delta_biases.push(d_b);
         }
 
         // final iteration is calculated with the input layer
-        let d_a =
-            self.layer_matrices[1]
-                .0
-                .transpose()
-                .dot(&Matrix::from_vec(d_z.clone(), d_z.len(), 1));
+        let d_a = self.layer_matrices[1].0.t().dot(&d_z);
 
         match self.activation {
             ActivationType::Sigmoid => {
                 d_z = d_a
-                    .data
                     .into_iter()
                     .enumerate()
-                    .map(|(i, x)| x * der_sigm(self.activation_matrices[0].get(i, 0)))
+                    .map(|(i, x)| x * der_sigm(self.activation_matrices[0][[i]]))
                     .collect()
             }
             ActivationType::Tanh => {
                 d_z = d_a
-                    .data
                     .into_iter()
                     .enumerate()
-                    .map(|(i, x)| x * der_tanh(self.activation_matrices[0].get(i, 0)))
+                    .map(|(i, x)| x * der_tanh(self.activation_matrices[0][[i]]))
                     .collect()
             }
             ActivationType::ArcTanh => {
                 d_z = d_a
-                    .data
                     .into_iter()
                     .enumerate()
-                    .map(|(i, x)| x * der_arc_tanh(self.activation_matrices[0].get(i, 0)))
+                    .map(|(i, x)| x * der_arc_tanh(self.activation_matrices[0][[i]]))
                     .collect()
             }
             ActivationType::Relu => {
                 d_z = d_a
-                    .data
                     .into_iter()
                     .enumerate()
-                    .map(|(i, x)| x * der_relu(self.activation_matrices[0].get(i, 0)))
+                    .map(|(i, x)| x * der_relu(self.activation_matrices[0][[i]]))
                     .collect()
             }
             ActivationType::LeakyRelu => {
                 d_z = d_a
-                    .data
                     .into_iter()
                     .enumerate()
-                    .map(|(i, x)| x * der_leaky_relu(self.activation_matrices[0].get(i, 0)))
+                    .map(|(i, x)| x * der_leaky_relu(self.activation_matrices[0][[i]]))
                     .collect()
             }
             ActivationType::SoftMax => {
                 d_z = d_a
                     .to_vec()
                     .into_iter()
-                    .map(|x| x * der_softmax(x, &d_a.data))
+                    .map(|x| x * der_softmax(x, &d_a))
                     .collect()
             }
             ActivationType::SoftPlus => {
                 d_z = d_a
-                    .data
                     .into_iter()
                     .enumerate()
-                    .map(|(i, x)| x * der_softplus(self.activation_matrices[0].get(i, 0)))
+                    .map(|(i, x)| x * der_softplus(self.activation_matrices[0][[i]]))
                     .collect()
             }
         }
 
-        let d_w = Matrix::from_vec(d_z.clone(), d_z.len(), 1)
-            .dot(&Matrix::from_vec(input.clone(), input.len(), 1).transpose());
-        delta_weights.push(d_w);
+        let d_w = Array::from_shape_vec((1, d_z.len()), d_z.to_vec())
+            .unwrap()
+            .t()
+            .dot(&Array::from_shape_vec((1, input.len()), input.to_vec()).unwrap());
+        delta_weights.push(d_w[[0, 0]]);
 
-        let d_b = Matrix::from_vec(d_z.clone(), d_z.len(), 1);
+        let d_b = d_z.clone();
         delta_biases.push(d_b);
 
         for i in 0..self.layer_matrices.len() {
-            self.layer_matrices[i].0 = self.layer_matrices[i].0.sub(
-                &delta_weights[self.layer_matrices.len() - 1 - i].scalar_mul(self.leanring_rate),
-            );
-            self.layer_matrices[i].1 = self.layer_matrices[i].1.sub(
-                &delta_biases[self.layer_matrices.len() - 1 - i].scalar_mul(self.leanring_rate),
-            );
+            self.layer_matrices[i].0 = &self.layer_matrices[i].0
+                - (delta_weights[self.layer_matrices.len() - 1 - i] * (self.leanring_rate));
+
+            self.layer_matrices[i].1 = &self.layer_matrices[i].1
+                - (&delta_biases[self.layer_matrices.len() - 1 - i] * (self.leanring_rate));
         }
 
-        loss
+        Array::from_vec(loss)
     }
 }
 
@@ -804,7 +801,7 @@ impl<
 
         output = Self::add_array::<LAYER_SIZE>(&output, &self.input_matrix.1);
 
-        Self::update_weights(&output, self.activation.clone()); 
+        Self::update_weights(&output, self.activation.clone());
 
         // ------------------------------------------------------------------- ACTIVATION MATRIX WRITE ABOVE THEN FILL BELLOW
 
