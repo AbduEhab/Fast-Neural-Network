@@ -13,12 +13,14 @@ pub enum ActivationType {
     ArcTanh,
     Relu,
     LeakyRelu,
+    ELU,
+    Swish,
     SoftMax,
     SoftPlus,
 }
 
 pub fn sigm(x: f64) -> f64 {
-    1.0 / (1.0 + x.exp())
+    1.0 / (1.0 + (-x).exp())
 }
 pub fn der_sigm(x: f64) -> f64 {
     sigm(x) * (1.0 - sigm(x))
@@ -66,6 +68,46 @@ pub fn der_leaky_relu(x: f64) -> f64 {
     } else {
         1.0
     }
+}
+
+// pub fn parametric_relu(x: f64, alpha: f64) -> f64 {
+//     if x <= 0.0 {
+//         alpha * x
+//     } else {
+//         x
+//     }
+// }
+
+// pub fn der_parametric_relu(x: f64, alpha: f64) -> f64 {
+//     if x <= 0.0 {
+//         alpha
+//     } else {
+//         1.0
+//     }
+// }
+
+pub fn elu(x: f64) -> f64 {
+    if x <= 0.0 {
+        0.01 * (x.exp() - 1.0)
+    } else {
+        x
+    }
+}
+
+pub fn der_elu(x: f64) -> f64 {
+    if x <= 0.0 {
+        elu(x) + 0.01
+    } else {
+        1.0
+    }
+}
+
+pub fn swish(x: f64) -> f64 {
+    x * sigm(x)
+}
+
+pub fn der_swish(x: f64) -> f64 {
+    swish(x) + sigm(x) * (1.0 - swish(x))
 }
 
 pub fn softmax(x: f64, total: &ndarray::Array1<f64>) -> f64 {

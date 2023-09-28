@@ -83,7 +83,7 @@ pub struct Network {
     layer_matrices: Vec<(ndarray::Array2<f64>, ndarray::Array1<f64>)>, // (weights, biases)
     activation_matrices: Vec<ndarray::Array1<f64>>,
     activation: ActivationType, // activation function
-    leanring_rate: f64,
+    learning_rate: f64,
     compiled: bool,
 }
 
@@ -99,7 +99,7 @@ impl Network {
     /// assert_eq!(network.dimensions().0, 3);
     /// assert_eq!(network.dimensions().1, 1);
     /// assert_eq!(network.hidden_layers_size(), 0);
-    /// assert_eq!(network.leanring_rate(), 0.005);
+    /// assert_eq!(network.learning_rate(), 0.005);
     /// ```
     pub fn new(inputs: usize, outputs: usize, activation_func: ActivationType, alpha: f64) -> Self {
         Network {
@@ -109,7 +109,7 @@ impl Network {
             layer_matrices: vec![],
             activation_matrices: vec![],
             activation: activation_func,
-            leanring_rate: alpha,
+            learning_rate: alpha,
             compiled: false,
         }
     }
@@ -125,7 +125,7 @@ impl Network {
     /// assert_eq!(network.dimensions().0, 3);
     /// assert_eq!(network.dimensions().1, 1);
     /// assert_eq!(network.hidden_layers_size(), 2);
-    /// assert_eq!(network.leanring_rate(), 0.005);
+    /// assert_eq!(network.learning_rate(), 0.005);
     /// ```
     pub fn new_with_layers(
         inputs: usize,
@@ -141,7 +141,7 @@ impl Network {
             layer_matrices: vec![],
             activation_matrices: vec![],
             activation: activation_func,
-            leanring_rate: alpha,
+            learning_rate: alpha,
             compiled: false,
         }
     }
@@ -300,12 +300,12 @@ impl Network {
 
     /// Sets the learning rate of the network
     pub fn set_learning_rate(&mut self, alpha: f64) {
-        self.leanring_rate = alpha;
+        self.learning_rate = alpha;
     }
 
     /// Returns the learning rate of the network
-    pub fn leanring_rate(&self) -> f64 {
-        self.leanring_rate
+    pub fn learning_rate(&self) -> f64 {
+        self.learning_rate
     }
 
     /// Returns the output of the network for the given input. It doesn't consume the input
@@ -346,6 +346,12 @@ impl Network {
                 }),
                 ActivationType::LeakyRelu => weights.into_iter().for_each(|x| {
                     leaky_relu(*x);
+                }),
+                ActivationType::ELU => weights.into_iter().for_each(|x| {
+                    elu(*x);
+                }),
+                ActivationType::Swish => weights.into_iter().for_each(|x| {
+                    swish(*x);
                 }),
                 ActivationType::SoftPlus => weights.into_iter().for_each(|x| {
                     softplus(*x);
@@ -420,6 +426,8 @@ impl Network {
                         ActivationType::ArcTanh => der_arc_tanh(output[i]),
                         ActivationType::Relu => der_relu(output[i]),
                         ActivationType::LeakyRelu => der_leaky_relu(output[i]),
+                        ActivationType::ELU => der_elu(output[i]),
+                        ActivationType::Swish => der_swish(output[i]),
                         ActivationType::SoftMax => der_softmax(output[i], &output),
                         ActivationType::SoftPlus => der_softplus(output[i]),
                     }
@@ -475,6 +483,18 @@ impl Network {
                         .map(|x| x * der_leaky_relu(self.activation_matrices[i - 1][[0]]))
                         .collect()
                 }
+                ActivationType::ELU => {
+                    d_z = d_a
+                        .into_iter()
+                        .map(|x| x * der_elu(self.activation_matrices[i - 1][[0]]))
+                        .collect()
+                }
+                ActivationType::Swish => {
+                    d_z = d_a
+                        .into_iter()
+                        .map(|x| x * der_swish(self.activation_matrices[i - 1][[0]]))
+                        .collect()
+                }
                 ActivationType::SoftMax => {
                     let d_a_1d = Array::<f64, _>::from_shape_vec(
                         d_a.len(),
@@ -497,7 +517,6 @@ impl Network {
 
             let d_w = Array::from_shape_vec((1, d_z.len()), d_z.to_vec())
                 .unwrap()
-                
                 .dot(&self.activation_matrices[i - 2]);
             delta_weights.push(d_w[0]);
 
@@ -505,10 +524,14 @@ impl Network {
             delta_biases.push(d_b);
         }
 
+        dbg!(&self.layer_matrices[1]);
+
         // final iteration is calculated with the input layer
-        let d_a = self.layer_matrices[1]
-            .0
-            .dot(&Array::from_shape_vec((1, d_z.len()), d_z.to_vec()).unwrap().t());
+        let d_a = self.layer_matrices[1].0.dot(
+            &Array::from_shape_vec((1, d_z.len()), d_z.to_vec())
+                .unwrap()
+                .t(),
+        );
 
         match self.activation {
             ActivationType::Sigmoid => {
@@ -556,6 +579,24 @@ impl Network {
                     .map(|(i, x)| x * der_leaky_relu(self.activation_matrices[0][[i]]))
                     .collect()
             }
+            ActivationType::ELU => {
+                d_z = d_a
+                    .t()
+                    .row(0)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_elu(self.activation_matrices[0][[i]]))
+                    .collect()
+            }
+            ActivationType::Swish => {
+                d_z = d_a
+                    .t()
+                    .row(0)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| x * der_swish(self.activation_matrices[0][[i]]))
+                    .collect()
+            }
             ActivationType::SoftMax => {
                 let d_a_1d =
                     Array::<f64, _>::from_shape_vec(d_a.len(), d_a.clone().into_iter().collect())
@@ -590,10 +631,10 @@ impl Network {
 
         for i in 0..self.layer_matrices.len() {
             self.layer_matrices[i].0 = &self.layer_matrices[i].0
-                - (delta_weights[self.layer_matrices.len() - 1 - i] * (self.leanring_rate));
+                - (delta_weights[self.layer_matrices.len() - 1 - i] * (self.learning_rate));
 
             self.layer_matrices[i].1 = &self.layer_matrices[i].1
-                - (&delta_biases[self.layer_matrices.len() - 1 - i] * (self.leanring_rate));
+                - (&delta_biases[self.layer_matrices.len() - 1 - i] * (self.learning_rate));
         }
 
         Array::from_vec(loss)
@@ -635,7 +676,7 @@ struct StackNetwork<
     layer_matrices: [([f64; LAYER_SIZE2], [f64; LAYER_SIZE]); EXTRA_HIDDEN_LAYERS], // (weights, biases)
     activation_matrices: [[f64; LAYER_SIZE2]; HIDDEN_LAYERS],
     activation: ActivationType, // activation function
-    leanring_rate: f64,
+    learning_rate: f64,
 }
 
 impl<
@@ -676,7 +717,7 @@ impl<
     /// assert_eq!(network.dimensions().0, 3);
     /// assert_eq!(network.dimensions().1, 1);
     /// assert_eq!(network.hidden_layers_size(), 0);
-    /// assert_eq!(network.leanring_rate(), 0.005);
+    /// assert_eq!(network.learning_rate(), 0.005);
     /// ```
     pub fn new(activation_func: ActivationType, alpha: f64) -> Self {
         StackNetwork {
@@ -685,7 +726,7 @@ impl<
             layer_matrices: [([0.0; LAYER_SIZE2], [0.0; LAYER_SIZE]); EXTRA_HIDDEN_LAYERS],
             activation_matrices: [[0.0; LAYER_SIZE2]; HIDDEN_LAYERS],
             activation: activation_func,
-            leanring_rate: alpha,
+            learning_rate: alpha,
         }
     }
 
@@ -744,12 +785,12 @@ impl<
 
     /// Sets the learning rate of the network
     pub fn set_learning_rate(&mut self, alpha: f64) {
-        self.leanring_rate = alpha;
+        self.learning_rate = alpha;
     }
 
     /// Returns the learning rate of the network
-    pub fn leanring_rate(&self) -> f64 {
-        self.leanring_rate
+    pub fn learning_rate(&self) -> f64 {
+        self.learning_rate
     }
 
     fn update_weights<const SIZE: usize>(weights: &[f64; SIZE], activation: ActivationType) {
@@ -762,6 +803,12 @@ impl<
             }),
             ActivationType::LeakyRelu => weights.into_iter().for_each(|x| {
                 leaky_relu(*x);
+            }),
+            ActivationType::ELU => weights.into_iter().for_each(|x| {
+                elu(*x);
+            }),
+            ActivationType::Swish => weights.into_iter().for_each(|x| {
+                swish(*x);
             }),
             ActivationType::Tanh => weights.into_iter().for_each(|x| {
                 tanh(*x);

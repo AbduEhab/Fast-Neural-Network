@@ -5,7 +5,13 @@ fn main() {
     let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
 
     network.add_hidden_layer_with_size(4);
-    network.add_hidden_layer_with_size(4);
+    // network.add_hidden_layer_with_size(4);
+    // network.add_hidden_layer_with_size(4);
+    // network.add_hidden_layer_with_size(4);
+    // network.add_hidden_layer_with_size(4);
+    // network.add_hidden_layer_with_size(4);
+    // network.add_hidden_layer_with_size(4);
+    // network.add_hidden_layer_with_size(4);
     network.compile();
 
     // let layer_1_weights = Array::from_shape_vec(
@@ -39,7 +45,9 @@ fn main() {
 
     let prediction = network.forward_propagate(&input);
 
-    network.back_propagate(&input, &Array::from_vec(vec![9.0]));
+    for _ in 0..10000 {
+        network.back_propagate(&input, &Array::from_vec(vec![9.0]));
+    }
 
     let new_prediction = network.forward_propagate(&input);
 
