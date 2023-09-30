@@ -217,7 +217,7 @@ impl Network {
     ///
     /// ## Panics
     ///
-    /// Panics if any of the dimentions is 0
+    /// Panics if any of the dimentions is 0 or if no hidden layers are present.
     pub fn compile(&mut self) {
         assert!(self.inputs.size > 0);
         assert!(self.outputs.size > 0);
@@ -309,18 +309,6 @@ impl Network {
         self.learning_rate
     }
 
-    /// Trains the network with the given input and target output.
-    ///
-    /// ## Example
-    /// ```
-    /// // network creation
-    /// // ...
-    ///
-    /// let input = vec![1, 3];
-    /// let target = vec![0.5];
-    ///
-    /// network.back_propagate(&input, &target);
-    /// ```
     fn back_propagate(
         &self,
         dz: &ndarray::Array2<f64>,
@@ -463,6 +451,22 @@ impl Network {
         }
     }
 
+    /// Trains the network with the given training set for the given number of epochs.
+    ///
+    /// ## Example
+    /// ```
+    /// use fast_neural_network::{activation::*, neural_network::*};
+    /// use ndarray::*;
+    ///
+    /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
+    ///
+    /// network.add_hidden_layer_with_size(4);
+    /// network.add_hidden_layer_with_size(4);
+    ///
+    /// network.compile();
+    ///
+    /// network.train(&[(array![2., 1., -1.], array![9.])], 100);
+    /// ```
     pub fn train(
         &mut self,
         training_set: &[(ndarray::Array1<f64>, ndarray::Array1<f64>)],
