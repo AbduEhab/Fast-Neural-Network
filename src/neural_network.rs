@@ -331,14 +331,10 @@ impl Network {
         ndarray::Array2<f64>,
         ndarray::Array1<f64>,
     ) {
-        let m = a.len() as f64;
-
-        dbg!(dz.clone());
-        dbg!(a.clone());
-        dbg!(w.clone());
+        let m = self.outputs.size as f64;
 
         let dw = dz.dot(&a.t()) / m;
-        let db = dz.sum_axis(Axis(1)) / m;
+        let db = &dz.column(0) / m;
         let da = w.t().dot(dz);
 
         (
@@ -357,39 +353,38 @@ impl Network {
 
         self.activation_matrices.clear();
 
-        let activate_outputs =
-            |weights: &mut ndarray::Array2<f64>, activation: ActivationType| match activation {
-                ActivationType::Sigmoid => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = sigm(*x);
-                }),
-                ActivationType::Tanh => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = tanh(*x);
-                }),
-                ActivationType::ArcTanh => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = arc_tanh(*x);
-                }),
-                ActivationType::Relu => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = relu(*x);
-                }),
-                ActivationType::LeakyRelu => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = leaky_relu(*x);
-                }),
-                ActivationType::ELU => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = elu(*x);
-                }),
-                ActivationType::Swish => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = swish(*x);
-                }),
-                ActivationType::SoftPlus => weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = softplus(*x);
-                }),
-                ActivationType::SoftMax => {
-                    let w_col = weights.column(0).to_owned();
-                    weights.column_mut(0).into_iter().for_each(|x| {
-                        *x = softmax(*x, &w_col);
-                    })
-                }
-            };
+        let activate_outputs = |weights: &mut ndarray::Array2<f64>| match self.activation {
+            ActivationType::Sigmoid => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = sigm(*x);
+            }),
+            ActivationType::Tanh => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = tanh(*x);
+            }),
+            ActivationType::ArcTanh => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = arc_tanh(*x);
+            }),
+            ActivationType::Relu => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = relu(*x);
+            }),
+            ActivationType::LeakyRelu => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = leaky_relu(*x);
+            }),
+            ActivationType::ELU => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = elu(*x);
+            }),
+            ActivationType::Swish => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = swish(*x);
+            }),
+            ActivationType::SoftPlus => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = softplus(*x);
+            }),
+            ActivationType::SoftMax => {
+                let w_col = weights.column(0).to_owned();
+                weights.column_mut(0).into_iter().for_each(|x| {
+                    *x = softmax(*x, &w_col);
+                })
+            }
+        };
 
         let mut output = input.clone().into_shape((self.inputs.size, 1)).unwrap();
 
@@ -399,9 +394,7 @@ impl Network {
             output = weights.dot(&output);
             output = output + biases;
 
-            dbg!(output.clone());
-            activate_outputs(&mut output, self.activation.clone());
-            dbg!(output.clone());
+            activate_outputs(&mut output);
 
             self.activation_matrices.push(output.clone());
         }
@@ -409,19 +402,63 @@ impl Network {
         output.into_shape((self.outputs.size, 1)).unwrap()
     }
 
-    fn derivative(&self, array: &ndarray::Array2<f64>) -> ndarray::Array1<f64> {
+    fn derivative(&self, mut array: ndarray::Array2<f64>) -> ndarray::Array1<f64> {
+        let array_size = array.len();
         match self.activation {
-            ActivationType::Sigmoid => array.column(0).mapv(|x| der_sigm(x)),
-            ActivationType::Tanh => array.column(0).mapv(|x| der_tanh(x)),
-            ActivationType::ArcTanh => array.column(0).mapv(|x| der_arc_tanh(x)),
-            ActivationType::Relu => array.column(0).mapv(|x| der_relu(x)),
-            ActivationType::LeakyRelu => array.column(0).mapv(|x| der_leaky_relu(x)),
-            ActivationType::ELU => array.column(0).mapv(|x| der_elu(x)),
-            ActivationType::Swish => array.column(0).mapv(|x| der_swish(x)),
-            ActivationType::SoftPlus => array.column(0).mapv(|x| der_softplus(x)),
+            ActivationType::Sigmoid => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_sigm(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
+            ActivationType::Tanh => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_tanh(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
+            ActivationType::ArcTanh => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_arc_tanh(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
+            ActivationType::Relu => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_relu(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
+            ActivationType::LeakyRelu => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_leaky_relu(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
+            ActivationType::ELU => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_elu(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
+            ActivationType::Swish => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_swish(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
+            ActivationType::SoftPlus => {
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_softplus(*x);
+                });
+                array.into_shape(array_size).unwrap()
+            }
             ActivationType::SoftMax => {
-                let coll = &array.column(0).to_owned();
-                array.column(0).mapv(|x| der_softmax(x, coll))
+                let array_col = array.column(0).to_owned();
+                array.column_mut(0).into_iter().for_each(|x| {
+                    *x = der_softmax(*x, &array_col);
+                });
+                array.into_shape(array_size).unwrap()
             }
         }
     }
@@ -457,72 +494,72 @@ impl Network {
                         };
                 });
 
-                let mut dz = z;
+                let dz: ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>> = z;
 
                 let layer_matrix_size = self.layer_matrices.len() - 1;
 
-                let (_, biases) = &self.layer_matrices[layer_matrix_size];
+                let a = self.activation_matrices[layer_matrix_size - 1].clone();
+                let w = &self.layer_matrices[layer_matrix_size].0;
 
-                let a = self.activation_matrices[layer_matrix_size - 2].clone();
-                let w = &self.layer_matrices[layer_matrix_size - 2].0;
+                let m = dz.len() as f64;
 
-                {
-                    let m = a.len() as f64;
+                let dw = dz.dot(&a.t()) / m;
+                let db = &dz / m;
+                let da = w * dz[0];
 
-                    dbg!(dz.clone());
-                    dbg!(a.clone());
-                    dbg!(w.clone());
+                let mut dz = da * self.derivative(a.clone());
 
-                    let dw = dz.dot(&a.t()) / m;
-                    let db = dz.sum_axis(Axis(1)) / m;
-                    let da = w * dz[0];
+                let (weights, biases) = &self.layer_matrices[layer_matrix_size];
+                let n_weights = weights - &dw * self.learning_rate;
+                let n_biases = biases - &db * self.learning_rate;
+                self.layer_matrices[layer_matrix_size] = (n_weights, n_biases);
+                dbg!(self.layer_matrices.clone());
 
-                    dbg!(da.clone());
-                    dbg!(dw.clone());
-                    dbg!(db.clone());
-                    dbg!(dz.clone());
-
-                    dz = da.dot(&self.derivative(&biases));
-
-                    let (weights, biases) = &self.layer_matrices[layer_matrix_size];
-                    let n_weights = weights - &dw * self.learning_rate;
-                    let n_biases = biases - &db * self.learning_rate;
-                    self.layer_matrices[layer_matrix_size] = (n_weights, n_biases);
-                }
-
-                for i in (0..self.layer_matrices.len() - 1).rev() {
+                for i in (1..self.layer_matrices.len() - 1).rev() {
                     let dz_size = dz.len();
-                    dbg!(dz_size.clone());
 
-                    let (_, biases) = &self.layer_matrices[i];
-                    dbg!(biases.clone());
+                    let w = &self.layer_matrices[i].0;
 
                     let a = self.activation_matrices[i - 1].clone();
                     let a_size = a.len();
 
-                    let w = &self.layer_matrices[i - 1].0;
-
                     let (da, dw, db) = self.back_propagate(
                         &dz.into_shape((dz_size, 1)).unwrap(),
-                        &a.into_shape((a_size, 1)).unwrap(),
+                        &a.clone().into_shape((a_size, 1)).unwrap(),
                         &w,
                     );
 
-                    dbg!(da.clone());
-                    dbg!(dw.clone());
-                    dbg!(db.clone());
+                    dz = da.t().to_owned() * self.derivative(a.clone());
 
-                    dz = da.dot(&self.derivative(&biases));
-                    dbg!(dz.clone());
+                    let (weights, biases) = &self.layer_matrices[i];
+                    let n_weights = weights - &dw.mapv(|x| x * self.learning_rate);
+                    let n_biases = biases
+                        - &db
+                            .mapv(|x| x * self.learning_rate)
+                            .into_shape((db.len(), 1))
+                            .unwrap();
+                    self.layer_matrices[i] = (n_weights, n_biases);
+
+                    dbg!(self.layer_matrices.clone());
                 }
 
-                // for i in 0..self.layer_matrices.len() {
-                //     let (weights, biases) = &self.layer_matrices[i];
-                //     let n_weights = weights - &dw * self.learning_rate;
-                //     let n_biases = biases - &db * self.learning_rate;
+                let dz_size = dz.len();
+                let w = &self.layer_matrices[0].0;
+                let a = input.clone().into_shape((input.len(), 1)).unwrap();
+                let (_, dw, db) =
+                    self.back_propagate(&dz.into_shape((dz_size, 1)).unwrap(), &a, &w);
 
-                //     self.layer_matrices[i] = (n_weights, n_biases);
-                // }
+                let (weights, biases) = &self.layer_matrices[0];
+                let n_weights = weights - &dw.mapv(|x| x * self.learning_rate);
+                let n_biases = biases
+                    - &db
+                        .mapv(|x| x * self.learning_rate)
+                        .into_shape((db.len(), 1))
+                        .unwrap();
+
+                dbg!(n_biases.clone());
+
+                self.layer_matrices[0] = (n_weights, n_biases);
             }
         }
     }

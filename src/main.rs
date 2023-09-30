@@ -32,7 +32,7 @@ fn main() {
     .unwrap();
     let layer_2_biases = array!([0.41, 0.09, 0.28, 0.70]);
     let layer_3_weights = Array::from_shape_vec((1, 4), vec![0.23, 0.34, 0.24, 0.67]).unwrap();
-    let layer_3_biases =  array!([0.23]);
+    let layer_3_biases = array!([0.23]);
 
     network.set_layer_weights(0, layer_1_weights);
     network.set_layer_biases(0, layer_1_biases);
@@ -45,18 +45,18 @@ fn main() {
 
     let prediction = network.predict(&input);
 
-    network.train(&[(input.clone(), Array::from_elem(1, 9.))], 100);
+    network.train(&[(input.clone(), array!(9.))], 1);
 
     let new_prediction = network.predict(&input);
 
     println!("{:?}", prediction);
     println!("{:?}", new_prediction);
 
-    // println!("{}", network);
+    println!("{}", network);
 
-    // network.save("network.json");
+    network.save("network.json");
 
-    // let mut network = Network::load("network.json");
+    let mut network = Network::load("network.json");
 
-    // println!("{:?}", network.forward_propagate(&input));
+    println!("{:?}", network.predict(&input));
 }
