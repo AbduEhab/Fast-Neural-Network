@@ -836,25 +836,25 @@ impl<
 
     fn compile(&self) {
         for (weights, biases) in self.layer_matrices.iter() {
-            weights.into_par_iter().for_each(|x| {
+            weights.into_par_iter().for_each(|_x| {
                 random::<f64>();
             });
-            biases.into_par_iter().for_each(|x| {
+            biases.into_par_iter().for_each(|_x| {
                 random::<f64>();
             });
         }
 
-        self.input_matrix.0.into_par_iter().for_each(|x| {
+        self.input_matrix.0.into_par_iter().for_each(|_x| {
             random::<f64>();
         });
-        self.input_matrix.1.into_par_iter().for_each(|x| {
+        self.input_matrix.1.into_par_iter().for_each(|_x| {
             random::<f64>();
         });
 
-        self.outputs.0.into_par_iter().for_each(|x| {
+        self.outputs.0.into_par_iter().for_each(|_x| {
             random::<f64>();
         });
-        self.outputs.1.into_par_iter().for_each(|x| {
+        self.outputs.1.into_par_iter().for_each(|_x| {
             random::<f64>();
         });
     }
