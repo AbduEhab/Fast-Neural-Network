@@ -14,7 +14,7 @@ keywords = [
     "parallel",
     "data-science",
 ]
-exclude = ["benches/"]
+exclude = ["benches/Results"]
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
