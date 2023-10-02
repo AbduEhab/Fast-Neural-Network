@@ -1,89 +1,80 @@
 # Rust-Neural-Network
 
-This is the beginning of a neural network library written in Rust, designed to provide a flexible and efficient platform for building and training neural networks.
-The current implementation requires that everything is allocated on the heap and be computed partially. This will be changed once Rust has a better implementation of Generics in Constant Expressions.
+This is the beginning of a neural network library written in Rust, designed to provide a flexible and efficient platform for building and training simple neural networks.
+The current implementation requires that everything is allocated on the heap and be computed in chunks. This will be changed once Rust has a better implementation of Generics in Constant Expressions.
 
 > The nightly compiler is not something I wanna bother with.
+
+## Why this library?
+
+Since everything is written in rust and doesn't use any external dependencies, it can be easily integrated into any Embedded project without having to worry about speed or any dependance on other languages (which is my spacific usecase)
 
 ## Project Status
 
 This library is still in its early development stages, and the current version is in the beta stage and will jump to a 1.0.0 version once stack-based allocations are implemented.
-Contributions and feedback are welcome, but please be aware that the internal structure may undergo significant changes as the library matures, so don't depend on the internal `Matrix` implementation as it will most likely change.
+Contributions and feedback are welcome, but please be aware that the internal structure may undergo significant changes as the library matures.
 
 ## Features
 
-- [x] Basic Neural Network Layers: The library currently supports fundamental neural network layers such as fully connected (dense) layers and convolutional layers (I call them hidden layers in the API)
-- [x] Activation functions (Sigmoid, Tanh, ArcTanh, Relu, LeakyRelu, SoftMax, SoftPlus).
 - [x] Training: The library allows for low-level training of the network using backpropagation and gradient descent.
+- [x] Activation functions (Sigmoid, Tanh, ArcTanh, Relu, LeakyRelu, SoftMax, SoftPlus, etc).
 - [x] Model Serialization
+- [ ] Stack-based allocations (coming soon)
+- [ ] GPU acceleration (might be implemented in the future)
 
 But, here's an example of creating a simple neural network and then training it for a single epoch using the library
 
 ```rust
-use fast_neural_network::{activation::*, matrix::*, neural_network::*};
+use fast_neural_network::{activation::*, neural_network::*};
+use ndarray::*;
 
 fn main() {
-    let mut network = Network::empty_network(3, 1, ActivationType::Relu, 0.005);
-    network.add_hidden_layer_with_size(4);
-    network.add_hidden_layer_with_size(4);
+    let mut network = Network::new(2, 1, ActivationType::Tanh, 0.005); // Create a new network with 2 inputs, 1 output, a tanh activation function, and a learning rate of 0.005
+
+    network.add_hidden_layer_with_size(2); // Add a hidden layer with 2 neurons
+
     network.compile();  // Compile the network to prepare it for training
                         // (will be done automatically during training)
                         // The API is exposed so that the user can compile
                         // the network on a different thread before training if they want to
 
-    // -------------------------------  OPTIONAL STEP -------------------------------
-    // setting up the weights and biases of the network manually (this is an optional step)
-    let layer_1_weights = Matrix::from_vec(
-        vec![
-            0.03, 0.62, 0.85,
-            0.60, 0.62, 0.64,
-            0.75, 0.73, 0.34,
-            0.46, 0.14, 0.06,
-        ],
-        4,
-        3,
-    );
-    let layer_1_biases = Matrix::from_vec(vec![0.14, 0.90, 0.65, 0.32], 4, 1);
-    let layer_2_weights = Matrix::from_vec(
-        vec![
-            0.90, 0.95, 0.26, 0.70,
-            0.12, 0.84, 0.58, 0.78,
-            0.92, 0.16, 0.49, 0.90,
-            0.64, 0.60, 0.64, 0.85,
-        ],
-        4,
-        4,
-    );
-    let layer_2_biases = Matrix::from_vec(vec![0.41, 0.09, 0.28, 0.70], 4, 1);
-    let layer_3_weights = Matrix::from_vec(vec![0.23, 0.34, 0.24, 0.67], 1, 4);
-    let layer_3_biases = Matrix::from_vec(vec![0.23], 1, 1);
+    // Let's create a dataset
+    let mut dataset: Vec<(ndarray::Array1<f64>, ndarray::Array1<f64>)> = Vec::new();
 
-    network.set_layer_weights(0, layer_1_weights);
-    network.set_layer_biases(0, layer_1_biases);
-    network.set_layer_weights(1, layer_2_weights);
-    network.set_layer_biases(1, layer_2_biases);
-    network.set_layer_weights(2, layer_3_weights);
-    network.set_layer_biases(2, layer_3_biases);
-    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    dataset.push((array!(0., 0.), array!(0.)));
+    dataset.push((array!(1., 0.), array!(1.)));
+    dataset.push((array!(0., 1.), array!(1.)));
+    dataset.push((array!(1., 1.), array!(0.)));
 
-    // defining the input for the network
-    let input: Vec<f64> = vec![2., 1., -1.];
+    let untrained_prediction = network.forward(&input); // Predict the output of the network
+    println!("{:?}", trained_prediction);
 
-    let prediction = network.forward_propagate(&input); // Predict the output of the network
-    let error = network.back_propagate(&input, &vec![9.0]); // Backpropagate the input with a target output of 9.0
-    let new_prediction = network.forward_propagate(&input); // Predict the output of the network again
+    network.train(&dataset, 50_000, 5_000); // train the network for 50,000 epochs with a decay_time of 5,000 epochs
+    let new_prediction = network.forward(&input); // Predict the output of the network again
 
-    println!("{:?}", prediction);
-    println!("{:?}", new_prediction);
+
+    let mut res;
+
+    // Let's check the result
+    for i in 0..dataset.len() {
+        res = network.forward(&dataset[i].0);
+        let d = &dataset[i];
+        println!(
+            "for [{:.3}, {:.3}], [{:.3}] -> [{:.3}]",
+            d.0[0], d.0[1], d.1[0], res
+        );
+    }
 
     network.save("network.json"); // Save the model as a json to a file
 
-    let mut network = Network::load("network.json"); // Load the model from a json file
+    let mut loaded_network = Network::load("network.json");  // Load the model from a json file
 
-    println!("{:?}", network.forward_propagate(&input));
+    println!("{:?}", loaded_network.predict(&input));
 }
-
 ```
+
+### Expected Output
+![Expected Output](xor_result.png)
 
 ## Speed
 

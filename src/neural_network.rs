@@ -3,31 +3,16 @@
 //! This is the neural network module. It contains the `Network` struct and the `ActivationType` enum. This is the heart of the crate.
 //!
 
+use indicatif::{ProgressIterator, ProgressState};
 use ndarray::*;
 use rand::random;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::f64;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display, Formatter, Write};
 
 use crate::activation::*;
-
-/// a trait for adding two vectors
-pub trait LinearAlgebra {
-    fn add(&self, other: &Self) -> Self;
-}
-
-impl LinearAlgebra for Vec<f64> {
-    fn add(&self, other: &Self) -> Self {
-        debug_assert!(self.len() == other.len());
-        let mut result = vec![0.0; self.len()];
-        for i in 0..self.len() {
-            result[i] = self[i] + other[i];
-        }
-        result
-    }
-}
 
 /// The underlying layer struct for the heap based network.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -309,7 +294,7 @@ impl Network {
         self.learning_rate
     }
 
-    fn back_propagate(
+    fn back_propagate_helper(
         &self,
         dz: &ndarray::Array2<f64>,
         a: &ndarray::Array2<f64>,
@@ -332,7 +317,18 @@ impl Network {
         )
     }
 
-    pub fn predict(&mut self, input: &ndarray::Array1<f64>) -> ndarray::Array2<f64> {
+    /// Predicts the output of the network for the given input.
+    /// 
+    /// ## Example
+    /// ```
+    /// // ... imports here
+    /// 
+    /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
+    /// 
+    /// // ... training done here
+    /// 
+    /// let prediction = network.forward(&array![2., 1., -1.]);
+    pub fn forward(&mut self, input: &ndarray::Array1<f64>) -> ndarray::Array2<f64> {
         if !self.compiled {
             self.compile();
         }
@@ -390,7 +386,7 @@ impl Network {
         output.into_shape((self.outputs.size, 1)).unwrap()
     }
 
-    fn derivative(&self, mut array: ndarray::Array2<f64>) -> ndarray::Array1<f64> {
+    fn derivate(&self, mut array: ndarray::Array2<f64>) -> ndarray::Array1<f64> {
         let array_size = array.len();
         match self.activation {
             ActivationType::Sigmoid => {
@@ -465,18 +461,35 @@ impl Network {
     ///
     /// network.compile();
     ///
-    /// network.train(&[(array![2., 1., -1.], array![9.])], 100);
+    /// network.train(&[(array![2., 1., -1.], array![9.])], 100, 100);
     /// ```
     pub fn train(
         &mut self,
         training_set: &[(ndarray::Array1<f64>, ndarray::Array1<f64>)],
         epochs: usize,
+        decay_time: usize,
     ) {
-        for _ in 0..epochs {
+        let mut time_since_last_decay = 0;
+        for _ in (0..epochs).progress_with_style(
+            indicatif::ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed_precise}] {wide_bar:.cyan/blue} {pos:>7}/{len:7} {msg} {eta}",
+            )
+            .unwrap()
+            .with_key("msg", |_: &ProgressState, w: &mut dyn Write| write!(w, "eta:").unwrap())
+            .with_key("eta", |state: &ProgressState, w: &mut dyn Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap())
+            .progress_chars("#>-"),
+        ) {
+            time_since_last_decay += 1;
+
+            if time_since_last_decay >= decay_time {
+                self.learning_rate *= 0.95;
+                time_since_last_decay = 0;
+            }
+            
             for (input, target) in training_set {
                 // let mut output = self.predict(&Array::from_shape_vec((input.len(), 1), input.clone().into_raw_vec()).unwrap());
 
-                let output = self.predict(input);
+                let output = self.forward(input);
 
                 let output = output.into_shape(self.outputs.size).unwrap();
 
@@ -498,72 +511,69 @@ impl Network {
                         };
                 });
 
-                let dz: ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>> = z;
+                z.for_each(|z| {
+                    let dz: ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>> = array![*z];
 
-                let layer_matrix_size = self.layer_matrices.len() - 1;
+                    let layer_matrix_size = self.layer_matrices.len() - 1;
 
-                let a = self.activation_matrices[layer_matrix_size - 1].clone();
-                let w = &self.layer_matrices[layer_matrix_size].0;
+                    let a = self.activation_matrices[layer_matrix_size - 1].clone();
+                    let w = &self.layer_matrices[layer_matrix_size].0;
 
-                let m = dz.len() as f64;
+                    let m = dz.len() as f64;
 
-                let dw = dz.dot(&a.t()) / m;
-                let db = &dz / m;
-                let da = w * dz[0];
+                    let dw = dz.dot(&a.t()) / m;
+                    let db = &dz / m;
+                    let da = w * dz[0];
 
-                let mut dz = da * self.derivative(a.clone());
+                    let mut dz = da * self.derivate(a.clone());
 
-                let (weights, biases) = &self.layer_matrices[layer_matrix_size];
-                let n_weights = weights - &dw * self.learning_rate;
-                let n_biases = biases - &db * self.learning_rate;
-                self.layer_matrices[layer_matrix_size] = (n_weights, n_biases);
-                dbg!(self.layer_matrices.clone());
+                    let (weights, biases) = &self.layer_matrices[layer_matrix_size];
+                    let n_weights = weights - &dw * self.learning_rate;
+                    let n_biases = biases - &db * self.learning_rate;
+                    self.layer_matrices[layer_matrix_size] = (n_weights, n_biases);
 
-                for i in (1..self.layer_matrices.len() - 1).rev() {
+                    for i in (1..self.layer_matrices.len() - 1).rev() {
+                        let dz_size = dz.len();
+
+                        let w = &self.layer_matrices[i].0;
+
+                        let a = self.activation_matrices[i - 1].clone();
+                        let a_size = a.len();
+
+                        let (da, dw, db) = self.back_propagate_helper(
+                            &dz.into_shape((dz_size, 1)).unwrap(),
+                            &a.clone().into_shape((a_size, 1)).unwrap(),
+                            &w,
+                        );
+
+                        dz = da.t().to_owned() * self.derivate(a.clone());
+
+                        let (weights, biases) = &self.layer_matrices[i];
+                        let n_weights = weights - &dw.mapv(|x| x * self.learning_rate);
+                        let n_biases = biases
+                            - &db
+                                .mapv(|x| x * self.learning_rate)
+                                .into_shape((db.len(), 1))
+                                .unwrap();
+                        self.layer_matrices[i] = (n_weights, n_biases);
+                    }
+
                     let dz_size = dz.len();
+                    let w = &self.layer_matrices[0].0;
+                    let a = input.clone().into_shape((input.len(), 1)).unwrap();
+                    let (_, dw, db) =
+                        self.back_propagate_helper(&dz.into_shape((dz_size, 1)).unwrap(), &a, &w);
 
-                    let w = &self.layer_matrices[i].0;
-
-                    let a = self.activation_matrices[i - 1].clone();
-                    let a_size = a.len();
-
-                    let (da, dw, db) = self.back_propagate(
-                        &dz.into_shape((dz_size, 1)).unwrap(),
-                        &a.clone().into_shape((a_size, 1)).unwrap(),
-                        &w,
-                    );
-
-                    dz = da.t().to_owned() * self.derivative(a.clone());
-
-                    let (weights, biases) = &self.layer_matrices[i];
+                    let (weights, biases) = &self.layer_matrices[0];
                     let n_weights = weights - &dw.mapv(|x| x * self.learning_rate);
                     let n_biases = biases
                         - &db
                             .mapv(|x| x * self.learning_rate)
                             .into_shape((db.len(), 1))
                             .unwrap();
-                    self.layer_matrices[i] = (n_weights, n_biases);
 
-                    dbg!(self.layer_matrices.clone());
-                }
-
-                let dz_size = dz.len();
-                let w = &self.layer_matrices[0].0;
-                let a = input.clone().into_shape((input.len(), 1)).unwrap();
-                let (_, dw, db) =
-                    self.back_propagate(&dz.into_shape((dz_size, 1)).unwrap(), &a, &w);
-
-                let (weights, biases) = &self.layer_matrices[0];
-                let n_weights = weights - &dw.mapv(|x| x * self.learning_rate);
-                let n_biases = biases
-                    - &db
-                        .mapv(|x| x * self.learning_rate)
-                        .into_shape((db.len(), 1))
-                        .unwrap();
-
-                dbg!(n_biases.clone());
-
-                self.layer_matrices[0] = (n_weights, n_biases);
+                    self.layer_matrices[0] = (n_weights, n_biases);
+                });
             }
         }
     }
