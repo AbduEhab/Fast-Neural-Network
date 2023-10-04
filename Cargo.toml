@@ -23,9 +23,10 @@ strip = true
 
 # Enable no amount of optimization in debug mode
 [profile.dev]
-# opt-level = 0
+opt-level = 0
 
 [profile.release]
+opt-level = 3
 strip = true
 lto = "fat"
 

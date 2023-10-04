@@ -3,7 +3,7 @@
 //! This is the neural network module. It contains the `Network` struct and the `ActivationType` enum. This is the heart of the crate.
 //!
 
-use indicatif::{ProgressIterator, ProgressState};
+use indicatif::{MultiProgress, ProgressBar, ProgressIterator, ProgressState, ProgressStyle};
 use ndarray::*;
 use rand::random;
 use rayon::prelude::*;
@@ -317,51 +317,50 @@ impl Network {
         )
     }
 
-    fn activate (&self, weights: &mut ndarray::Array2<f64>){
-        
-     match self.activation {
-        ActivationType::Sigmoid => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = sigm(*x);
-        }),
-        ActivationType::Tanh => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = tanh(*x);
-        }),
-        ActivationType::ArcTanh => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = arc_tanh(*x);
-        }),
-        ActivationType::Relu => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = relu(*x);
-        }),
-        ActivationType::LeakyRelu => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = leaky_relu(*x);
-        }),
-        ActivationType::ELU => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = elu(*x);
-        }),
-        ActivationType::Swish => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = swish(*x);
-        }),
-        ActivationType::SoftPlus => weights.column_mut(0).into_iter().for_each(|x| {
-            *x = softplus(*x);
-        }),
-        ActivationType::SoftMax => {
-            let w_col = weights.column(0).to_owned();
-            weights.column_mut(0).into_iter().for_each(|x| {
-                *x = softmax(*x, &w_col);
-            })
-        }
-    };
-}
+    fn activate(&self, weights: &mut ndarray::Array2<f64>) {
+        match self.activation {
+            ActivationType::Sigmoid => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = sigm(*x);
+            }),
+            ActivationType::Tanh => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = tanh(*x);
+            }),
+            ActivationType::ArcTanh => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = arc_tanh(*x);
+            }),
+            ActivationType::Relu => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = relu(*x);
+            }),
+            ActivationType::LeakyRelu => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = leaky_relu(*x);
+            }),
+            ActivationType::ELU => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = elu(*x);
+            }),
+            ActivationType::Swish => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = swish(*x);
+            }),
+            ActivationType::SoftPlus => weights.column_mut(0).into_iter().for_each(|x| {
+                *x = softplus(*x);
+            }),
+            ActivationType::SoftMax => {
+                let w_col = weights.column(0).to_owned();
+                weights.column_mut(0).into_iter().for_each(|x| {
+                    *x = softmax(*x, &w_col);
+                })
+            }
+        };
+    }
     /// Predicts the output of the network for the given input.
-    /// 
+    ///
     /// ## Example
     /// ```
     /// // ... imports here
-    /// 
+    ///
     /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
-    /// 
+    ///
     /// // ... training done here
-    /// 
+    ///
     /// let prediction = network.forward(&array![2., 1., -1.]);
     pub fn forward(&mut self, input: &ndarray::Array1<f64>) -> ndarray::Array2<f64> {
         if !self.compiled {
@@ -471,24 +470,53 @@ impl Network {
         epochs: usize,
         decay_time: usize,
     ) {
-        let mut time_since_last_decay = 0;
-        for _ in (0..epochs).progress_with_style(
-            indicatif::ProgressStyle::with_template(
-                "{spinner:.green} [{elapsed_precise}] {wide_bar:.cyan/blue} {pos:>7}/{len:7} {msg} {eta}",
+        let m = MultiProgress::new();
+
+        let outer = m.add(ProgressBar::new(epochs as u64));
+        outer.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed}] {wide_bar:.cyan/blue} {pos:>7}/{len:7} {msg} {eta}",
             )
             .unwrap()
-            .with_key("msg", |_: &ProgressState, weights: &mut dyn Write| write!(weights, "eta:").unwrap())
-            .with_key("eta", |state: &ProgressState, weights: &mut dyn Write| write!(weights, "{:.1}s", state.eta().as_secs_f64()).unwrap())
+            .with_key("eta", |state: &ProgressState, weights: &mut dyn Write| {
+                write!(weights, "eta: {:.1}s", state.eta().as_secs_f64()).unwrap()
+            })
             .progress_chars("#>-"),
-        ) {
+        );
+
+        outer.inc(1);
+
+        let mut time_since_last_decay = 0;
+        for _ in 0..epochs {
             time_since_last_decay += 1;
+
+            let inner_pb = m.add(ProgressBar::new(training_set.len() as u64));
+            inner_pb.set_style(
+                ProgressStyle::default_bar()
+                    .template(
+                        "{spinner:.green} [{elapsed_precise}] {bar:.green} {pos:>7}/{len:7} {eta}",
+                    )
+                    .unwrap()
+                    .progress_chars("#>-")
+                    .with_key("eta", |state: &ProgressState, weights: &mut dyn Write| {
+                        write!(weights, "eta: {:.1}s", state.eta().as_secs_f64()).unwrap()
+                    }),
+            );
 
             if time_since_last_decay >= decay_time {
                 self.learning_rate *= 0.95;
                 time_since_last_decay = 0;
             }
-            
+
+            let mut element_counter = 0;
+
             for (input, target) in training_set {
+                element_counter += 1;
+
+                if element_counter % 100 == 0 {
+                    inner_pb.inc(100);
+                }
+
                 let output = self.forward(input);
 
                 let output = output.into_shape(self.outputs.size).unwrap();
@@ -525,17 +553,35 @@ impl Network {
 
                     let dw = &dz * &a.t() / m;
                     let db = &dz / m;
-                    let da = weights.mapv(|v| v * dz[0]).into_shape((a.len(), 1)).unwrap();
+                    let da = weights
+                        .mapv(|v| v * dz[0])
+                        .into_shape((a.len(), 1))
+                        .unwrap();
 
                     let a_derived = self.derivate(a.clone());
 
-                    let mut dz = Array::from_shape_vec((a_derived.len(), 1), da.iter().zip(a_derived.iter()).map(|(a, b)| a * b).collect::<Vec<f64>>() ).unwrap();
+                    let mut dz = Array::from_shape_vec(
+                        (a_derived.len(), 1),
+                        da.iter()
+                            .zip(a_derived.iter())
+                            .map(|(a, b)| a * b)
+                            .collect::<Vec<f64>>(),
+                    )
+                    .unwrap();
 
-                    let new_i_weights = (- &dw * self.learning_rate + weights).into_shape(weights.len()).unwrap();
-                    let new_i_biases =  - &db * self.learning_rate + biases.row(i);
+                    let new_i_weights = (-&dw * self.learning_rate + weights)
+                        .into_shape(weights.len())
+                        .unwrap();
+                    let new_i_biases = -&db * self.learning_rate + biases.row(i);
 
-                    self.layer_matrices[layer_matrix_size].0.row_mut(i).assign(&new_i_weights);
-                    self.layer_matrices[layer_matrix_size].1.row_mut(i).assign(&new_i_biases);
+                    self.layer_matrices[layer_matrix_size]
+                        .0
+                        .row_mut(i)
+                        .assign(&new_i_weights);
+                    self.layer_matrices[layer_matrix_size]
+                        .1
+                        .row_mut(i)
+                        .assign(&new_i_biases);
 
                     drop(new_i_weights);
                     drop(new_i_biases);
@@ -544,7 +590,6 @@ impl Network {
                         let dz_size = dz.len();
 
                         let (weights, biases) = &self.layer_matrices[j];
-
 
                         let a = &self.activation_matrices[j - 1];
                         let a_size = a.len();
@@ -569,8 +614,11 @@ impl Network {
                     let dz_size = dz.len();
                     let weights = &self.layer_matrices[0].0;
                     let a = input.clone().into_shape((input.len(), 1)).unwrap();
-                    let (_, dw, db) =
-                        self.back_propagate_helper(&dz.into_shape((dz_size, 1)).unwrap(), &a, &weights);
+                    let (_, dw, db) = self.back_propagate_helper(
+                        &dz.into_shape((dz_size, 1)).unwrap(),
+                        &a,
+                        &weights,
+                    );
 
                     let (weights, biases) = &self.layer_matrices[0];
                     let n_weights = weights - &dw.mapv(|x| x * self.learning_rate);
@@ -583,7 +631,10 @@ impl Network {
                     self.layer_matrices[0] = (n_weights, n_biases);
                 });
             }
+            inner_pb.finish_and_clear();
         }
+        outer.finish_and_clear();
+        m.clear().unwrap();
     }
 }
 
