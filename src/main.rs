@@ -2,7 +2,7 @@ use fast_neural_network::{activation::*, neural_network::*};
 use ndarray::*;
 
 fn main() {
-    let mut network = Network::new(2, 1, ActivationType::Tanh, 0.005); // Create a new network with 2 inputs, 1 output, a tanh activation function, and a learning rate of 0.005
+    let mut network = Network::new(2, 1, ActivationType::LeakyRelu, 0.01); // Create a new network with 2 inputs, 1 output, a LeakyRelu activation function, and a learning rate of 0.01
 
     network.add_hidden_layer_with_size(2); // Add a hidden layer with 2 neurons
 
@@ -19,7 +19,7 @@ fn main() {
     dataset.push((array!(0., 1.), array!(1.)));
     dataset.push((array!(1., 1.), array!(0.)));
 
-    network.train(&dataset, 50_000, 5_000); // train the network for 50,000 epochs with a decay_time of 5,000 epochs
+    network.train(&dataset, 20_000, 1_000); // train the network for 20,000 epochs with a decay_time of 1,000 epochs
 
     let mut res;
 

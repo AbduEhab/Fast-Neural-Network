@@ -9,7 +9,7 @@
 //! use ndarray::*;
 //! 
 //! fn main() {
-//!     let mut network = Network::new(2, 1, ActivationType::Tanh, 0.005); // Create a new network with 2 inputs, 1 output, a tanh activation function, and a learning rate of 0.005
+//!     let mut network = Network::new(2, 1, ActivationType::LeakyRelu, 0.01); // Create a new network with 2 inputs, 1 output, a LeakyRelu activation function, and a learning rate of 0.01
 //! 
 //!     network.add_hidden_layer_with_size(2); // Add a hidden layer with 2 neurons
 //! 
@@ -18,7 +18,7 @@
 //!                         // The API is exposed so that the user can compile
 //!                         // the network on a different thread before training if they want to
 //! 
-//!     // Let's create a dataset
+//!     // Let's create a dataset to represent the XOR function
 //!     let mut dataset: Vec<(ndarray::Array1<f64>, ndarray::Array1<f64>)> = Vec::new();
 //! 
 //!     dataset.push((array!(0., 0.), array!(0.)));
@@ -26,12 +26,7 @@
 //!     dataset.push((array!(0., 1.), array!(1.)));
 //!     dataset.push((array!(1., 1.), array!(0.)));
 //! 
-//!     let untrained_prediction = network.forward(&input); // Predict the output of the network
-//!     println!("{:?}", trained_prediction);
-//! 
-//!     network.train(&dataset, 50_000, 5_000); // train the network for 50,000 epochs with a decay_time of 5,000 epochs
-//!     let new_prediction = network.forward(&input); // Predict the output of the network again
-//! 
+//!     network.train(&dataset, 20_000, 1_000); // train the network for 20,000 epochs with a decay_time of 1,000 epochs
 //! 
 //!     let mut res;
 //! 
@@ -47,10 +42,10 @@
 //! 
 //!     network.save("network.json"); // Save the model as a json to a file
 //! 
-//!     let mut loaded_network = Network::load("network.json");  // Load the model from a json file
-//! 
-//!     println!("{:?}", loaded_network.predict(&input));
+//!     // Load the model from a json file using the below line
+//!     // let mut loaded_network = Network::load("network.json");  
 //! }
+//!  
 //! 
 //! ```
 
