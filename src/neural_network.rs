@@ -3,7 +3,7 @@
 //! This is the neural network module. It contains the `Network` struct and the `ActivationType` enum. This is the heart of the crate.
 //!
 
-use indicatif::{MultiProgress, ProgressBar, ProgressIterator, ProgressState, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressState, ProgressStyle};
 use ndarray::*;
 use rand::random;
 use rayon::prelude::*;
