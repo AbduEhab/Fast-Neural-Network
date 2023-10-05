@@ -484,8 +484,6 @@ impl Network {
             .progress_chars("#>-"),
         );
 
-        outer.inc(1);
-
         let mut time_since_last_decay = 0;
         for _ in 0..epochs {
             time_since_last_decay += 1;
@@ -632,6 +630,7 @@ impl Network {
                 });
             }
             inner_pb.finish_and_clear();
+            outer.inc(1);
         }
         outer.finish_and_clear();
         m.clear().unwrap();
