@@ -1,6 +1,6 @@
 [package]
 name = "fast-neural-network"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 authors = ["AbduEhab <abdu.ehab0@gmail.com>"]
 description = "A heavily parallelized neural network library designed for speed and flexability."
