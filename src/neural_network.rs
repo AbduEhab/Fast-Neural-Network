@@ -187,8 +187,9 @@ impl Network {
         self.hidden_layers.push(Layer::new(size));
     }
 
-    /// Compiles the network. This is done automatically during training.
-    /// > Compilations should be done after the hidden layers are set.
+    /// Compiles the network. This prepares the random inital values of the network. Can be re-run as much as needed, if needed.
+    /// This is done automatically during training if it was not compiled before hand.
+    /// > Compilation should be done after the hidden layers are set, but before setting any custom layer values.
     ///
     /// ## Example
     /// ```
@@ -206,10 +207,6 @@ impl Network {
     pub fn compile(&mut self) {
         assert!(self.inputs.size > 0);
         assert!(self.outputs.size > 0);
-
-        if self.compiled {
-            return;
-        }
 
         self.layer_matrices.clear();
 
@@ -320,33 +317,33 @@ impl Network {
     fn activate(&self, weights: &mut ndarray::Array2<f64>) {
         match self.activation {
             ActivationType::Sigmoid => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = sigm(*x);
+                *x = sigm(x);
             }),
             ActivationType::Tanh => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = tanh(*x);
+                *x = tanh(x);
             }),
             ActivationType::ArcTanh => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = arc_tanh(*x);
+                *x = arc_tanh(x);
             }),
             ActivationType::Relu => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = relu(*x);
+                *x = relu(x);
             }),
             ActivationType::LeakyRelu => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = leaky_relu(*x);
+                *x = leaky_relu(x);
             }),
             ActivationType::ELU => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = elu(*x);
+                *x = elu(x);
             }),
             ActivationType::Swish => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = swish(*x);
+                *x = swish(x);
             }),
             ActivationType::SoftPlus => weights.column_mut(0).into_iter().for_each(|x| {
-                *x = softplus(*x);
+                *x = softplus(x);
             }),
             ActivationType::SoftMax => {
                 let w_col = weights.column(0).to_owned();
                 weights.column_mut(0).into_iter().for_each(|x| {
-                    *x = softmax(*x, &w_col);
+                    *x = softmax(x, &w_col);
                 })
             }
         };
@@ -392,56 +389,56 @@ impl Network {
         match self.activation {
             ActivationType::Sigmoid => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_sigm(*x);
+                    *x = der_sigm(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::Tanh => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_tanh(*x);
+                    *x = der_tanh(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::ArcTanh => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_arc_tanh(*x);
+                    *x = der_arc_tanh(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::Relu => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_relu(*x);
+                    *x = der_relu(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::LeakyRelu => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_leaky_relu(*x);
+                    *x = der_leaky_relu(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::ELU => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_elu(*x);
+                    *x = der_elu(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::Swish => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_swish(*x);
+                    *x = der_swish(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::SoftPlus => {
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_softplus(*x);
+                    *x = der_softplus(x);
                 });
                 array.into_shape(array_size).unwrap()
             }
             ActivationType::SoftMax => {
                 let array_col = array.column(0).to_owned();
                 array.column_mut(0).into_iter().for_each(|x| {
-                    *x = der_softmax(*x, &array_col);
+                    *x = der_softmax(x, &array_col);
                 });
                 array.into_shape(array_size).unwrap()
             }
@@ -449,6 +446,8 @@ impl Network {
     }
 
     /// Trains the network with the given training set for the given number of epochs.
+    ///
+    /// > It will compile the network if it was not compiled at least once
     ///
     /// ## Example
     /// ```
@@ -470,6 +469,10 @@ impl Network {
         epochs: usize,
         decay_time: usize,
     ) {
+        if !self.compiled {
+            self.compile()
+        }
+
         let m = MultiProgress::new();
 
         let outer = m.add(ProgressBar::new(epochs as u64));
@@ -483,6 +486,8 @@ impl Network {
             })
             .progress_chars("#>-"),
         );
+
+        outer.inc(0);
 
         let mut time_since_last_decay = 0;
         for _ in 0..epochs {
@@ -508,6 +513,7 @@ impl Network {
 
             let mut element_counter = 0;
 
+            inner_pb.inc(0);
             for (input, target) in training_set {
                 element_counter += 1;
 
@@ -525,19 +531,19 @@ impl Network {
                     *x = *x
                         * -2.
                         * match self.activation {
-                            ActivationType::Sigmoid => der_sigm(output[i]),
-                            ActivationType::Tanh => der_tanh(output[i]),
-                            ActivationType::ArcTanh => der_arc_tanh(output[i]),
-                            ActivationType::Relu => der_relu(output[i]),
-                            ActivationType::LeakyRelu => der_leaky_relu(output[i]),
-                            ActivationType::ELU => der_elu(output[i]),
-                            ActivationType::Swish => der_swish(output[i]),
-                            ActivationType::SoftMax => der_softmax(output[i], &output),
-                            ActivationType::SoftPlus => der_softplus(output[i]),
+                            ActivationType::Sigmoid => der_sigm(&output[i]),
+                            ActivationType::Tanh => der_tanh(&output[i]),
+                            ActivationType::ArcTanh => der_arc_tanh(&output[i]),
+                            ActivationType::Relu => der_relu(&output[i]),
+                            ActivationType::LeakyRelu => der_leaky_relu(&output[i]),
+                            ActivationType::ELU => der_elu(&output[i]),
+                            ActivationType::Swish => der_swish(&output[i]),
+                            ActivationType::SoftMax => der_softmax(&output[i], &output),
+                            ActivationType::SoftPlus => der_softplus(&output[i]),
                         };
                 });
 
-                z.iter_mut().enumerate().for_each(|(i, z)| {
+                for (i, z) in z.iter_mut().enumerate() {
                     let dz: ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>> = array![*z];
 
                     let layer_matrix_size = self.layer_matrices.len() - 1;
@@ -627,7 +633,7 @@ impl Network {
                             .unwrap();
 
                     self.layer_matrices[0] = (n_weights, n_biases);
-                });
+                };
             }
             inner_pb.finish_and_clear();
             outer.inc(1);
@@ -649,9 +655,9 @@ impl Display for Network {
         output.push_str(&format!("---------------------\n"));
         for (i, (weights, biases)) in self.layer_matrices.iter().enumerate() {
             output.push_str(&format!("Layer {}:\n", i));
-            output.push_str(&format!("Weights:\n{}", weights));
-            output.push_str(&format!("Biases:\n{}", biases));
-            output.push_str(&format!("---------------------\n"));
+            output.push_str(&format!("Weights:{}\n", weights));
+            output.push_str(&format!("Biases:{}\n", biases));
+            output.push_str(&format!("---------------------"));
         }
         write!(f, "{}", output)
     }

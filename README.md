@@ -7,12 +7,14 @@ The current implementation requires that everything is allocated on the heap and
 
 ## Why this library?
 
-Since everything is written in rust and doesn't use any external dependencies, it can be easily integrated into any Embedded project without having to worry about speed or any dependance on other languages (which is my spacific usecase)
+Since everything is written in rust and doesn't use any external dependencies, it can be easily integrated into any Embedded project without having to worry about speed or any dependance on other languages (which is my spacific use case)
 
 ## Project Status
 
 This library is still in its early development stages, and the current version is in the beta stage and will jump to a 1.0.0 version once stack-based allocations are implemented.
 Contributions and feedback are welcome, but please be aware that the internal structure may undergo significant changes as the library matures.
+
+> It is highly recomended to use V7.0+ as I reworked the current algorithm to increase speed and negate any stochastic behavior resulting from some logical errors that were present.
 
 ## Features
 
