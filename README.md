@@ -24,7 +24,7 @@ Contributions and feedback are welcome, but please be aware that the internal st
 - [ ] Stack-based allocations (coming soon)
 - [ ] GPU acceleration (might be implemented in the future)
 
-But, here's an example of creating a simple neural network and then training it for a single epoch using the library
+But, here's an example of creating a simple neural network and then training it for a number of epochs using the library
 
 ```rust
 use fast_neural_network::{activation::*, neural_network::*};
