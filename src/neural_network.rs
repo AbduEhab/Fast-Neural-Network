@@ -366,66 +366,65 @@ impl Network {
             self.activation_matrices.push(output.clone());
         }
 
-        output.into_shape((self.outputs.size, 1)).unwrap()
+        output.to_shape((self.outputs.size, 1)).unwrap().to_owned()
     }
 
     fn derivate(&self, mut array: ndarray::Array1<f64>) -> ndarray::Array1<f64> {
-        let array_size = array.len();
         match self.activation {
             ActivationType::Sigmoid => {
                 array.iter_mut().for_each(|x| {
                     *x = der_sigm(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::Tanh => {
                 array.iter_mut().for_each(|x| {
                     *x = der_tanh(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::ArcTanh => {
                 array.iter_mut().for_each(|x| {
                     *x = der_arc_tanh(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::Relu => {
                 array.iter_mut().for_each(|x| {
                     *x = der_relu(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::LeakyRelu => {
                 array.iter_mut().for_each(|x| {
                     *x = der_leaky_relu(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::ELU => {
                 array.iter_mut().for_each(|x| {
                     *x = der_elu(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::Swish => {
                 array.iter_mut().for_each(|x| {
                     *x = der_swish(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::SoftPlus => {
                 array.iter_mut().for_each(|x| {
                     *x = der_softplus(x);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
             ActivationType::SoftMax => {
                 let array_col = array.clone();
                 array.iter_mut().for_each(|x| {
                     *x = der_softmax(x, &array_col);
                 });
-                array.into_shape(array_size).unwrap()
+                array
             }
         }
     }
@@ -531,10 +530,7 @@ impl Network {
                     let a = &self.activation_matrices[i - 1];
                     let (weights, bias) = &self.layer_matrices[i];
 
-                    let a_size = a.len();
-                    
-                    let squared_a =
-                        Array2::from_shape_vec((a.len(), 1), a.clone().into_raw_vec()).unwrap();
+                    let squared_a = a.to_shape((a.len(), 1)).unwrap();
 
                     let dw = &dz * &squared_a;
                     let db = &dz;
@@ -544,7 +540,7 @@ impl Network {
 
                     let da = weights.t().dot(&dz);
 
-                    let a_derivated = self.derivate(a.clone());
+                    let a_derivated = self.derivate(a.clone()); // check
 
                     self.layer_matrices[i] = (n_weights, n_bias);
 
@@ -554,13 +550,13 @@ impl Network {
                 // last iteration (first layer)
                 let (weights, bias) = &self.layer_matrices[0];
 
-                let a = input.clone().into_shape((input.len(), 1)).unwrap();
+                let a = input.to_shape((input.len(), 1)).unwrap();
 
                 let dz_size = dz.len();
                 let a_size = a.len();
 
-                let dw = dz.clone().into_shape((dz_size, 1)).unwrap()
-                    * a.clone().into_shape((a_size, 1)).unwrap().t();
+                let dw = dz.to_shape((dz_size, 1)).unwrap()
+                    * a.to_shape((a_size, 1)).unwrap().t();
                 let db = &dz;
 
                 let n_weights = weights - &dw.mapv(|x| x * self.learning_rate);
