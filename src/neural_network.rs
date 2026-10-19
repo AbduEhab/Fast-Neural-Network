@@ -337,13 +337,15 @@ impl Network {
     ///
     /// ## Example
     /// ```
-    /// // ... imports here
+    /// use fast_neural_network::{activation::*, neural_network::*};
+    /// use ndarray::*;
     ///
     /// let mut network = Network::new(3, 1, ActivationType::Relu, 0.005);
     ///
     /// // ... training done here
     ///
     /// let prediction = network.forward(&array![2., 1., -1.]);
+    /// ```
     pub fn forward(&mut self, input: &ndarray::Array1<f64>) -> ndarray::Array2<f64> {
         if !self.compiled {
             self.compile();
